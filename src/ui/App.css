@@ -1,0 +1,486 @@
+/* Hide scrollbars globally */
+::-webkit-scrollbar {
+  display: none;
+}
+
+* {
+  scrollbar-width: none;
+}
+
+.drag-item {
+  -webkit-app-region: drag;
+  cursor: move;
+}
+
+/* AI Content Styling */
+.ai-heading-1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.ai-heading-2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 0.75rem;
+  margin-bottom: 0.25rem;
+  color: #ffffff;
+  line-height: 1.3;
+}
+
+.ai-heading-3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-top: 0.5rem;
+  margin-bottom: 0.25rem;
+  color: #ffffff;
+  line-height: 1.4;
+}
+
+.ai-paragraph {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  margin-bottom: 0.5rem;
+  color: #e5e5e5;
+}
+
+.ai-blockquote {
+  border-left: 4px solid #374151;
+  padding-left: 1rem;
+  margin: 0.75rem 0;
+  font-style: italic;
+  color: #d1d5db;
+  background-color: rgba(55, 65, 81, 0.1);
+  border-radius: 0 0.25rem 0.25rem 0;
+}
+
+.ai-list-unordered {
+  list-style-type: disc;
+  padding-left: 1.25rem;
+  margin-bottom: 0.5rem;
+  color: #e5e5e5;
+}
+
+.ai-list-ordered {
+  list-style-type: decimal;
+  padding-left: 1.25rem;
+  margin-bottom: 0.5rem;
+  color: #e5e5e5;
+}
+
+.ai-list-item {
+  margin-bottom: 0.25rem;
+}
+
+.ai-code-block {
+  position: relative;
+  background-color: #000000;
+  color: #cabe86;
+  padding: 0.75rem;
+  border-radius: 0.375rem;
+  overflow-x: auto;
+  margin: 0.5rem 0;
+  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.ai-code-copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.65);
+  color: white;
+  border: none;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.ai-code-block:hover .ai-code-copy-btn {
+  opacity: 1;
+}
+.ai-code-block code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+  border-radius: 0;
+}
+.ai-code {
+  background-color: #000000;
+  color: rgba(255, 255, 255, 0.797);
+  padding: 5px;
+}
+
+.ai-code-inline {
+  background-color: #000000;
+  color: #cabe86;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+  font-size: 0.85em;
+  word-break: break-all;
+  max-width: 100%;
+  display: inline-block;
+  overflow-wrap: break-word;
+}
+
+/* Strong and emphasis */
+.ai-paragraph strong,
+.ai-list-item strong {
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.ai-paragraph em,
+.ai-list-item em {
+  font-style: italic;
+  color: #d1d5db;
+}
+
+/* Links */
+.ai-paragraph a,
+.ai-list-item a {
+  color: #60a5fa;
+  text-decoration: underline;
+  transition: color 0.2s;
+}
+
+.ai-paragraph a:hover,
+.ai-list-item a:hover {
+  color: #93c5fd;
+}
+
+/* Q&A Content Styling */
+.qa-content {
+  margin: 0.5rem 0;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.qa-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.qa-content::-webkit-scrollbar-track {
+  background: rgba(55, 65, 81, 0.1);
+  border-radius: 3px;
+}
+
+.qa-content::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.5);
+  border-radius: 3px;
+}
+
+.qa-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.8);
+}
+
+/* Resizable content area */
+.ai-content .resize {
+  resize: both;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  transition: border-color 0.2s;
+}
+
+.ai-content .resize:hover {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.ai-content .resize::-webkit-resizer {
+  background: linear-gradient(
+    -45deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.3) 30%,
+    rgba(255, 255, 255, 0.3) 40%,
+    transparent 40%,
+    transparent 60%,
+    rgba(255, 255, 255, 0.3) 60%,
+    rgba(255, 255, 255, 0.3) 70%,
+    transparent 70%
+  );
+  border-radius: 0 0 0.5rem 0;
+}
+
+.qa-item-simple {
+  display: block;
+  margin-bottom: 0.75rem;
+  padding: 0.5rem 0;
+  color: #e5e5e5;
+  line-height: 1.5;
+}
+
+.qa-item-simple .question-number {
+  font-weight: 600;
+  color: #3b82f6;
+  margin-right: 0.5rem;
+}
+
+.qa-item-simple .answer-option {
+  font-weight: 600;
+  color: #10b981;
+  margin-right: 0.5rem;
+}
+
+.qa-item-simple .answer-text {
+  color: #e5e5e5;
+}
+
+/* Q&A Preview during streaming */
+.qa-preview {
+  margin-bottom: 0.25rem;
+  padding: 0.25rem 0;
+  color: #e5e5e5;
+  line-height: 1.4;
+}
+
+/* ============================================
+   UI LAYOUT SAFEGUARDS
+   ============================================ */
+
+/* Universal width constraints */
+.ai-response-container {
+  max-width: 80vw;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+.ai-long-content {
+  max-width: 60vw;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* Long URL handling */
+.ai-long-url {
+  word-break: break-all;
+  overflow-wrap: break-word;
+}
+
+/* Long word handling */
+.ai-long-word {
+  word-break: break-all;
+  overflow-wrap: break-word;
+}
+
+/* Responsive container utilities */
+.container-responsive {
+  width: 100%;
+  max-width: min(90vw, 1200px);
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .container-responsive {
+    max-width: 95vw;
+    padding: 0 1rem;
+  }
+
+  .ai-code-block {
+    max-width: 95vw;
+  }
+
+  .ai-response-container {
+    max-width: 95vw;
+  }
+}
+
+/* ============================================
+   ONBOARDING SCROLLBAR - PREMIUM DESIGN
+   ============================================ */
+
+/* Smooth scroll behavior for onboarding */
+.onboarding-scroll-container {
+  scroll-behavior: smooth;
+  scrollbar-gutter: stable;
+}
+
+/* Custom scrollbar for Webkit browsers (Chrome, Safari, Edge) */
+.onboarding-scroll-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.onboarding-scroll-container::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 10px;
+  margin: 8px 0;
+}
+
+.onboarding-scroll-container::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    rgba(139, 92, 246, 0.6) 0%,
+    rgba(99, 102, 241, 0.6) 50%,
+    rgba(139, 92, 246, 0.6) 100%
+  );
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 0.7;
+}
+
+/* Show scrollbar on hover */
+.onboarding-scroll-container:hover::-webkit-scrollbar-thumb {
+  opacity: 1;
+  background: linear-gradient(
+    180deg,
+    rgba(139, 92, 246, 0.8) 0%,
+    rgba(99, 102, 241, 0.8) 50%,
+    rgba(139, 92, 246, 0.8) 100%
+  );
+}
+
+/* Active state when dragging */
+.onboarding-scroll-container::-webkit-scrollbar-thumb:active {
+  background: linear-gradient(
+    180deg,
+    rgba(139, 92, 246, 0.9) 0%,
+    rgba(99, 102, 241, 0.9) 50%,
+    rgba(139, 92, 246, 0.9) 100%
+  );
+}
+
+/* Scrollbar track glow effect on hover */
+.onboarding-scroll-container:hover::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* Firefox scrollbar styling */
+.onboarding-scroll-container {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(139, 92, 246, 0.6) rgba(255, 255, 255, 0.05);
+}
+
+/* Fade indicators for scroll position */
+.onboarding-scroll-wrapper {
+  position: relative;
+}
+
+/* Top fade indicator */
+.onboarding-scroll-wrapper::before {
+  content: "";
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background: linear-gradient(
+    to bottom,
+    rgba(39, 39, 42, 0.95) 0%,
+    rgba(39, 39, 42, 0.7) 50%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 10;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+/* Bottom fade indicator */
+.onboarding-scroll-wrapper::after {
+  content: "";
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 80px;
+  background: linear-gradient(
+    to top,
+    rgba(39, 39, 42, 0.95) 0%,
+    rgba(39, 39, 42, 0.7) 40%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 10;
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+/* Show top fade when scrolled */
+.onboarding-scroll-wrapper.scrolled::before {
+  opacity: 1;
+}
+
+/* Hide bottom fade when at bottom */
+.onboarding-scroll-wrapper.at-bottom::after {
+  opacity: 0;
+}
+
+/* Smooth animation for scroll */
+@keyframes fadeInScroll {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.onboarding-scroll-container > * {
+  animation: fadeInScroll 0.4s ease-out backwards;
+}
+
+.onboarding-scroll-container > *:nth-child(1) {
+  animation-delay: 0.05s;
+}
+.onboarding-scroll-container > *:nth-child(2) {
+  animation-delay: 0.1s;
+}
+.onboarding-scroll-container > *:nth-child(3) {
+  animation-delay: 0.15s;
+}
+.onboarding-scroll-container > *:nth-child(4) {
+  animation-delay: 0.2s;
+}
+.onboarding-scroll-container > *:nth-child(5) {
+  animation-delay: 0.25s;
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes zoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-in {
+  animation-duration: 0.5s;
+  animation-fill-mode: both;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fade-in {
+  animation-name: fadeIn;
+}
+
+.zoom-in-95 {
+  animation-name: zoomIn;
+}
+
+/* Custom scrollbar for Webkit browsers */

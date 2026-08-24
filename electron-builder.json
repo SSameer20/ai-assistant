@@ -1,0 +1,46 @@
+{
+  "appId": "com.0xlabsorg.qluely",
+  "productName": "Clever AI",
+  "directories": { "output": "release" },
+  "files": ["dist-app", "dist-react"],
+  "protocols": [
+    { "name": "Qluely", "schemes": ["qluely"] },
+    { "name": "Qluely Dev", "schemes": ["qluely-dev"] }
+  ],
+  "publish": {
+    "provider": "s3",
+    "bucket": "qluely-desktop-bin",
+    "region": "ap-south-1",
+    "path": "win"
+  },
+  "win": {
+    "icon": "assets/logo.ico",
+    "target": [{ "target": "nsis", "arch": ["x64"] }],
+    "requestedExecutionLevel": "asInvoker",
+    "verifyUpdateCodeSignature": false,
+    "extraResources": [{ "from": "resources/ffmpeg/win32", "to": "ffmpeg", "filter": ["**/*"] }]
+  },
+  "nsis": { "oneClick": false, "perMachine": false, "allowToChangeInstallationDirectory": true },
+  "mac": {
+    "icon": "build/icon.icns",
+    "category": "public.app-category.productivity",
+    "target": { "target": "dmg", "arch": ["x64", "arm64"] },
+    "hardenedRuntime": false,
+    "gatekeeperAssess": false,
+    "identity": null,
+    "extendInfo": {
+      "NSMicrophoneUsageDescription": "This app requires microphone access.",
+      "NSScreenCaptureUsageDescription": "This app requires screen recording access.",
+      "NSCameraUsageDescription": "This app may require camera access.",
+      "CFBundleURLTypes": [
+        { "CFBundleURLName": "com.0xlabsorg.qluely.oauth", "CFBundleURLSchemes": ["qluely"] },
+        {
+          "CFBundleURLName": "com.0xlabsorg.qluely.oauth.dev",
+          "CFBundleURLSchemes": ["qluely-dev"]
+        }
+      ]
+    },
+    "extraResources": [{ "from": "resources/ffmpeg/darwin", "to": "ffmpeg", "filter": ["**/*"] }]
+  },
+  "linux": { "icon": "build/icon.png", "target": ["AppImage", "deb"], "category": "Utility" }
+}
