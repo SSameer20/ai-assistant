@@ -132,6 +132,48 @@ ipcMain.on("ai:start", async (event, input: QluelyInput) => {
   }
 });
 
+async function transcribeAudioChunk(chunk: Buffer): Promise<void> {
+  try {
+    const providerSettings = getProviderSettingsService();
+    const settings = providerSettings?.getSettings();
+    if (!settings) {
+      console.warn("Skipping audio transcription because no provider settings are saved");
+      return;
+    }
+
+    if (settings.provider !== "openai") {
+      console.warn(`Audio transcription is currently wired for OpenAI only, not ${settings.provider}`);
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("model", settings.sttModel || providerSettings.getDefaultSttModel("openai"));
+    formData.append("file", new Blob([new Uint8Array(chunk)], { type: "audio/wav" }), "chunk.wav");
+
+    const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${settings.apiKey}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Audio transcription failed:", errorText);
+      return;
+    }
+
+    const payload = await response.json();
+    const transcript = typeof payload?.text === "string" ? payload.text.trim() : "";
+    if (transcript) {
+      mainWindow?.webContents.send("system:audio:chunk", transcript);
+    }
+  } catch (error) {
+    console.error("Audio transcription error:", error);
+  }
+}
+
 // audio: use central AudioRecordingService so chunking and watchers work
 ipcMain.on("audio:start", async (event, opts = {}) => {
   try {
@@ -169,10 +211,7 @@ ipcMain.on("audio:stop", async (event) => {
 // Forward each audio chunk to the server via WebSocket
 ipcMain.on("audio:chunk", async (_, chunk: Buffer) => {
   try {
-    const wsManager = getWebSocketManager();
-    if (wsManager) {
-      wsManager.sendUserAudioChunk(chunk);
-    }
+    await transcribeAudioChunk(chunk);
   } catch (error) {
     console.error("Failed to forward audio chunk:", error);
   }
@@ -337,85 +376,6 @@ ipcMain.handle("capture:display-info", async () => {
   } catch (error) {
     console.error("Get display info error:", error);
     return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
-  }
-});
-
-// auth
-ipcMain.handle("auth:login", async (_, creds) => {
-  try {
-    const authService = getAuthenticationService();
-
-    if (!authService) {
-      return { success: false, error: "Authentication service not available" };
-    }
-
-    const result = await authService.login(creds);
-
-    if (result.success) {
-      // Start WebSocket connection on successful login
-      connectWebSocket();
-    }
-
-    return result;
-  } catch (error) {
-    console.error("Auth login handler error:", error);
-    return { success: false, error: "Unable to process login request" };
-  }
-});
-
-ipcMain.handle(
-  "auth:complete-onboarding",
-  async (_, data?: { role?: string; useCases?: string[] }) => {
-    try {
-      const authService = getAuthenticationService();
-      if (!authService) {
-        return false;
-      }
-      return await authService.completeOnboarding(data);
-    } catch (error) {
-      console.error("Complete onboarding error:", error);
-      return false;
-    }
-  },
-);
-
-ipcMain.handle("auth:get-user-details", async () => {
-  try {
-    const authService = getAuthenticationService();
-    if (!authService) {
-      return null;
-    }
-    return await authService.getUserDetails();
-  } catch (error) {
-    console.error("Get user details error:", error);
-    return null;
-  }
-});
-
-ipcMain.on("auth:clear", () => {
-  try {
-    clearUser();
-  } catch (error) {
-    console.error("Auth clear handler error:", error);
-  }
-});
-
-ipcMain.handle("auth:oauth-start", async (_, provider: "google" | "github") => {
-  try {
-    const authService = getAuthenticationService();
-    if (!authService) {
-      return { success: false, error: "Authentication service not available" };
-    }
-
-    // Minimize the desktop app so the browser is clearly visible to the user
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.minimize();
-    }
-
-    return await authService.loginWithOAuth(provider);
-  } catch (error) {
-    console.error("OAuth start handler error:", error);
-    return { success: false, error: "Failed to start OAuth flow" };
   }
 });
 

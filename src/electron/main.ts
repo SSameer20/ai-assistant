@@ -197,8 +197,7 @@ function initializeAuthenticationService(): void {
       }
 
       if (!isAuthenticated) {
-        // Handle logout - redirect to login page
-        windowManager?.sendMessage("nav:change", "/login");
+        windowManager?.sendMessage("nav:change", "/settings");
       }
     },
     onTokenExpired: () => {
@@ -228,17 +227,13 @@ function initializeOAuthService(): void {
     if (result.success && result.jwt) {
       // Store tokens securely
       authService.storeOAuthTokens(result.jwt, result.refreshToken);
-      // Connect WebSocket after successful OAuth login
+      // Direct-provider path no longer requires websocket login wiring
       connectWebSocket();
       // Notify renderer: OAuth complete
       windowManager?.sendMessage("auth:oauth-complete", { success: true });
       // Navigate to home
       const session = authService.getCurrentSession();
-      if (session?.isOnboarded === false) {
-        windowManager?.sendMessage("nav:change", "/onboarding");
-      } else {
-        windowManager?.sendMessage("nav:change", "/");
-      }
+      windowManager?.sendMessage("nav:change", "/");
     } else {
       // Notify renderer with error
       windowManager?.sendMessage("auth:oauth-complete", {
@@ -320,26 +315,20 @@ app.whenReady().then(async () => {
 
     // Initialize services early to prevent race conditions with activate event or shortcuts
     initializeWindowManager();
-    initializeWebSocketManager();
-    initializeAuthenticationService();
-    initializeOAuthService();
     initializeProviderSettingsService();
     initializeAutoUpdaterService();
     initializeAICommunicationService();
     initializeScreenCaptureService();
     // Initialize NavigationService after services are ready
-    navigationService = new NavigationService(mainWindow);
+    navigationService = new NavigationService(mainWindow, ["/", "/settings"]);
     audioRecordingService = new AudioRecordingService();
 
     if (process.platform === "darwin") {
       app.dock?.hide();
-      // Check permissions before creating the main window
       const hasMicPermission = await PermissionService.ensureMicrophonePermission();
       const hasScreenPermission = await PermissionService.ensureScreenRecordingPermission();
       if (!hasMicPermission || !hasScreenPermission) {
-        console.warn(
-          "Starting app with missing permissions. Some audio features will be disabled.",
-        );
+        console.warn("Starting app with missing permissions. Some audio features will be disabled.");
       }
     }
 
@@ -351,84 +340,21 @@ app.whenReady().then(async () => {
 
     createWindow();
 
-    // Initialize auto-updates
     if (!app.isPackaged) {
       console.log("App is in development mode, skipping auto-update setup");
     } else {
       console.log("Setting up auto-updates...");
-      // Start initial check 3 seconds after app start
       setTimeout(() => {
         autoUpdaterService?.checkForUpdatesAndNotify();
       }, 3000);
 
-      // Start periodic checks
       autoUpdaterService?.startPeriodicChecks();
     }
 
-    const token = authService?.getToken();
-    const hasRefreshToken = !!authService?.getRefreshToken();
-
-    // Decide if we should try to start normally or go to login
-    if (!token && !hasRefreshToken) {
-      console.log("No token or refresh token found, directing to login");
-      mainWindow?.webContents.once("did-finish-load", () => {
-        windowManager?.sendMessage("nav:change", "/login");
-      });
-    } else {
-      // Simple validation: if expired or expiring soon, try to refresh
-      const isExpired = authService?.isTokenExpired();
-      const isExpiringSoon = authService?.isTokenExpiringSoon(10); // 10 minutes window
-
-      if ((isExpired || isExpiringSoon) && hasRefreshToken) {
-        console.log(
-          `${isExpired ? "Access token expired" : "Token expiring soon"}, attempting refresh...`,
-        );
-        authService
-          ?.refreshToken()
-          .then((success) => {
-            if (success) {
-              console.log("Token refreshed successfully on app start");
-              handleAuthenticatedStart();
-            } else {
-              console.log("Token refresh failed, directing to login");
-              windowManager?.sendMessage("nav:change", "/login");
-            }
-          })
-          .catch((err) => {
-            console.error("Token refresh error during startup:", err);
-            windowManager?.sendMessage("nav:change", "/login");
-          });
-      } else if (!isExpired && token) {
-        console.log("Existing token is still valid, proceeding...");
-        handleAuthenticatedStart();
-      } else {
-        // Fallback: something is wrong with the session data
-        console.log("Incomplete or invalid session, directing to login");
-        windowManager?.sendMessage("nav:change", "/login");
-      }
-    }
-
-    // Common logic for starting once authenticated
-    function handleAuthenticatedStart() {
-      const session = authService?.getCurrentSession();
-
-      // Ensure we have a valid session before connecting WebSocket
-      if (!session) {
-        windowManager?.sendMessage("nav:change", "/login");
-        return;
-      }
-
-      // Show onboarding screen only if user hasn't onboarded at all (isOnboarded: false)
-      if (session?.isOnboarded === false) {
-        console.log("User needs to complete onboarding, redirecting...");
-        mainWindow?.webContents.once("did-finish-load", () => {
-          windowManager?.sendMessage("nav:change", "/onboarding");
-        });
-      }
-
-      // Connect WebSocket now that we have a valid token
-      connectWebSocket();
-    }
+    const hasProviderSettings = providerSettingsService.hasValidSettings();
+    mainWindow?.webContents.once("did-finish-load", () => {
+      windowManager?.sendMessage("nav:change", hasProviderSettings ? "/" : "/settings");
+    });
   } catch (error) {
     console.error("FATAL: Failed to initialize application:", error);
   }
@@ -486,8 +412,8 @@ export function clearUser() {
   webSocketManager?.disconnect();
   socket = null;
 
-  mainWindow?.webContents.send("nav:change", "/login");
-  // Alternative: windowManager.sendMessage("nav:change", "/login");
+  mainWindow?.webContents.send("nav:change", "/settings");
+  // Alternative: windowManager.sendMessage("nav:change", "/settings");
 
   // Reset logout flag after navigation
   setTimeout(() => {

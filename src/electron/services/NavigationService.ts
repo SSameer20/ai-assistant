@@ -12,7 +12,7 @@ export class NavigationService {
 
   constructor(
     mainWindow: BrowserWindow | null,
-    allowedRoutes: string[] = ["/", "/settings", "/login", "/onboarding", "/dashboard"],
+    allowedRoutes: string[] = ["/", "/settings"],
   ) {
     this.mainWindow = mainWindow;
     this.allowedRoutes = new Set(allowedRoutes);

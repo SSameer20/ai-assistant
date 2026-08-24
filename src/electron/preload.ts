@@ -87,43 +87,12 @@ contextBridge.exposeInMainWorld("nav", {
   },
 });
 
-contextBridge.exposeInMainWorld("auth", {
-  login: (creds: { email: string; password: string }) => ipcRenderer.invoke("auth:login", creds),
-  logout: () => ipcRenderer.send("auth:clear"),
-  completeOnboarding: (data?: { role?: string; useCases?: string[] }) =>
-    ipcRenderer.invoke("auth:complete-onboarding", data),
-  getUserDetails: () => ipcRenderer.invoke("auth:get-user-details"),
-
-  // OAuth 2.0 + PKCE
-  startOAuthFlow: (provider: "google" | "github") =>
-    ipcRenderer.invoke("auth:oauth-start", provider),
-
-  onOAuthComplete: (cb: (result: { success: boolean; error?: string }) => void) => {
-    const handler = (_: unknown, result: { success: boolean; error?: string }) => cb(result);
-    ipcRenderer.on("auth:oauth-complete", handler);
-    return () => ipcRenderer.removeListener("auth:oauth-complete", handler);
-  },
-});
-
 contextBridge.exposeInMainWorld("providerSettings", {
   get: async (): Promise<{ success: boolean; data?: ProviderSettings; error?: string }> =>
     ipcRenderer.invoke("provider-settings:get"),
   save: async (settings: ProviderSettingsInput): Promise<{ success: boolean; data?: ProviderSettings; error?: string }> =>
     ipcRenderer.invoke("provider-settings:save", settings),
   clear: (): void => ipcRenderer.send("provider-settings:clear"),
-});
-// Quota Events API
-contextBridge.exposeInMainWorld("quota", {
-  onAlert: (cb: (event: any) => void) => {
-    const handler = (_: unknown, event: any) => cb(event);
-    ipcRenderer.on("quota:alert", handler);
-    return () => ipcRenderer.removeListener("quota:alert", handler);
-  },
-  onExhausted: (cb: (event: any) => void) => {
-    const handler = (_: unknown, event: any) => cb(event);
-    ipcRenderer.on("quota:exhausted", handler);
-    return () => ipcRenderer.removeListener("quota:exhausted", handler);
-  },
 });
 
 // Auto-updater API

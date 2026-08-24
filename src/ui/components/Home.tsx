@@ -7,7 +7,6 @@ import {
   useAppState,
   useAskState,
   useDispatch,
-  useAuth,
 } from "../store";
 import { type QluelyInput, type StreamChunk } from "../lib/types";
 import { parseDataUrl } from "../helper/image";
@@ -19,8 +18,6 @@ import { useDebouncedWindowFit, useLayoutMonitor } from "../hooks/useWindowFit";
 import { Item, ItemContent, ItemMedia, ItemTitle } from "./ui/item";
 import { Spinner } from "./ui/spinner";
 import Transcription from "./Transcription";
-import Upgrade from "./Upgrade";
-import { useNotifications } from "../store";
 
 export default function Home() {
   const resultRef = useRef<HTMLDivElement>(null);
@@ -47,28 +44,12 @@ export default function Home() {
 
   const { isAskMode } = useAskState();
   const dispatch = useDispatch();
-  const { quotaExhausted, hideQuotaExhausted } = useNotifications();
   // spinner mount
   const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => {
     setHasMounted(true);
   }, []);
-
-  const { user } = useAuth();
-
-  // Refetch user credits
-  const refreshCredits = async () => {
-    try {
-      if (!user?.email) return;
-      const details = await window.auth.getUserDetails();
-      if (details) {
-        dispatch({ type: "AUTH_UPDATE_USER", payload: details as any });
-      }
-    } catch (e) {
-      console.error("Failed to refresh credits:", e);
-    }
-  };
 
   // Always enable content protection — screen-share hiding is permanently on
   useEffect(() => {
@@ -89,7 +70,6 @@ export default function Home() {
     messages,
     streamingMessage,
     isAskMode,
-    user?.creditsRemaining,
   ]);
 
   // Monitor layout for overflow issues
@@ -163,31 +143,14 @@ export default function Home() {
       setLoading(false);
       finalizeStreamingMessage();
       stopStreaming();
-      refreshCredits(); // Refresh credits instantly after action
-    });
-
-    const unsubscribeQuotaAlert = window.quota.onAlert((event: any) => {
-      dispatch({
-        type: "NOTIFICATION_SHOW_QUOTA_ALERT",
-        payload: { message: event.data.message, remainingCredits: event.data.remainingCredits },
-      });
-    });
-
-    const unsubscribeQuotaExhausted = window.quota.onExhausted((event: any) => {
-      dispatch({
-        type: "NOTIFICATION_SHOW_QUOTA_EXHAUSTED",
-        payload: { message: event.data.message },
-      });
     });
 
     return () => {
       unsubscribeEnd();
       unsubscribeChunk();
       unsubscribeEnd();
-      unsubscribeQuotaAlert();
-      unsubscribeQuotaExhausted();
     };
-  }, [setLoading, stopStreaming, finalizeStreamingMessage, processChunk, dispatch]);
+  }, [setLoading, stopStreaming, finalizeStreamingMessage, processChunk]);
 
   // Component unmount cleanup
   useEffect(() => {
@@ -210,14 +173,11 @@ export default function Home() {
 
       // Show specific error message instead of generic "Please Try Again"
       if (msg && msg.toLowerCase().includes("quota")) {
-        setResult("Quota Exhausted - Please upgrade your plan or wait for quota renewal");
-      } else if (msg && msg.toLowerCase().includes("authenticate")) {
-        setResult("Authentication Error - Please login again");
+        setResult("Provider error");
       } else {
         setResult("Please Try Again");
       }
 
-      refreshCredits(); // Refresh credits even on error in case partial cost applied
       setPrompt("");
       reset();
       // Don't auto-clear image on error - let user decide with clear button
@@ -249,9 +209,6 @@ export default function Home() {
     try {
       const imageToSend = imgData || image;
       if (!imageToSend) return;
-
-      // Check credits
-      if (user?.imageCredits === 0) return;
 
       // Mark this image as processed
       processedImageRef.current = imageToSend;
@@ -330,38 +287,6 @@ export default function Home() {
     window.transcription.sendAudioMessage(text);
   };
 
-  const [hasDismissedExhaustion, setHasDismissedExhaustion] = useState(false);
-
-  const creditsExhausted = user?.creditsRemaining === 0 && user?.imageCredits === 0;
-
-  // Reset dismissal when credits are refilled
-  useEffect(() => {
-    if (!creditsExhausted) {
-      setHasDismissedExhaustion(false);
-    }
-  }, [creditsExhausted]);
-
-  const showUpgrade = quotaExhausted?.visible || (creditsExhausted && !hasDismissedExhaustion);
-
-  const handleCloseUpgrade = () => {
-    hideQuotaExhausted();
-    if (creditsExhausted) {
-      setHasDismissedExhaustion(true);
-    }
-    setLoading(false);
-    stopStreaming();
-  };
-
-  if (showUpgrade)
-    return (
-      <div
-        className="flex flex-col gap-3 p-6 bg-transparent w-full h-full min-w-150 items-center"
-        data-main-container
-      >
-        <Upgrade onClose={handleCloseUpgrade} />
-      </div>
-    );
-
   return (
     <div
       className="flex flex-col gap-3 p-6 bg-transparent w-full h-full min-w-150 items-center overflow-hidden"
@@ -370,7 +295,7 @@ export default function Home() {
       {/* Upgrade Overlay */}
 
       {/* --- Top Control Bar --- */}
-      {isAskMode && <Navigation send={sendImage} disabled={user?.imageCredits === 0} />}
+      {isAskMode && <Navigation send={sendImage} disabled={false} />}
 
       {isAskMode && (
         <div
@@ -380,7 +305,7 @@ export default function Home() {
           <>
             <div className="flex items-center gap-3 justify-center">
               {/* System audio recorder */}
-              <Recorder disabled={user?.audioCredits == 0} />
+              <Recorder disabled={false} />
 
               <div className="flex-1 flex items-center justify-center gap-1">
                 <input

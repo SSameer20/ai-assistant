@@ -1,27 +1,9 @@
 import { useLayoutEffect, useEffect, useState } from "react";
-import type { ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
 import Navigation from "./Navigation";
-import { useAuth, useAskState } from "../store";
-import { LogOut, CreditCard, Crown, Eye, Mic, Save, KeyRound, SlidersHorizontal } from "lucide-react";
+import { useAskState } from "../store";
+import { Save, KeyRound, SlidersHorizontal } from "lucide-react";
 import type { AIProvider, ProviderSettings } from "../lib/types";
 
-type BillingCycle = "monthly" | "yearly" | "lifetime";
-type AccountTypes = "free" | "pro" | "enterprise";
-
-interface UserDetails {
-  imageCredits: number | undefined;
-  audioCredits: number | undefined;
-  creditsRemaining: number | undefined;
-  creditsUsed: number | undefined;
-  period: BillingCycle | null | undefined;
-  plan: AccountTypes | undefined;
-  planStartedAt: Date | null | undefined;
-  planExpiresAt: Date | null | undefined;
-  email: string | undefined;
-}
-
-const USER_DETAILS_KEY = "qluely_user_details";
 const PROVIDER_OPTIONS: Array<{ value: AIProvider; label: string }> = [
   { value: "openai", label: "OpenAI" },
   { value: "anthropic", label: "Anthropic" },
@@ -29,13 +11,7 @@ const PROVIDER_OPTIONS: Array<{ value: AIProvider; label: string }> = [
 ];
 
 export default function Settings() {
-  const { logout } = useAuth();
   const { isAskMode } = useAskState();
-  const navigate = useNavigate();
-  const [userDetails, setUserDetails] = useState<UserDetails | null>(() => {
-    const stored = localStorage.getItem(USER_DETAILS_KEY);
-    return stored ? JSON.parse(stored) : null;
-  });
   const [providerSettings, setProviderSettings] = useState<ProviderSettings | null>(null);
   const [provider, setProvider] = useState<AIProvider>("openai");
   const [apiKey, setApiKey] = useState("");
@@ -47,25 +23,8 @@ export default function Settings() {
   const [providerMessage, setProviderMessage] = useState("");
 
   useEffect(() => {
-    async function fetchUserDetails() {
-      setLoading(true);
-      try {
-        const details = await window.auth.getUserDetails();
-        if (details) {
-          setUserDetails(details);
-          localStorage.setItem(USER_DETAILS_KEY, JSON.stringify(details));
-        }
-      } catch (error) {
-        console.error("Failed to fetch user details:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchUserDetails();
-  }, []);
-
-  useEffect(() => {
     async function loadProviderSettings() {
+      setLoading(true);
       try {
         const result = await window.providerSettings.get();
         if (!result.success) {
@@ -84,6 +43,8 @@ export default function Settings() {
       } catch (error) {
         console.error("Failed to load provider settings:", error);
         setProviderError("Failed to load provider settings");
+      } finally {
+        setLoading(false);
       }
     }
 
@@ -97,13 +58,7 @@ export default function Settings() {
 
   useLayoutEffect(() => {
     window.size.fitToContent();
-  }, [isAskMode, userDetails, providerSettings, provider, model, sttModel, providerMessage, providerError]);
-
-  function handleLogout() {
-    localStorage.removeItem(USER_DETAILS_KEY);
-    logout();
-    navigate("/login");
-  }
+  }, [isAskMode, providerSettings, provider, model, sttModel, providerMessage, providerError]);
 
   async function handleSaveProviderSettings() {
     setSavingProvider(true);
@@ -140,7 +95,7 @@ export default function Settings() {
   }
 
   const keyPlaceholder = providerSettings?.hasApiKey ? "Stored securely on this device" : "Paste your API key";
-  const canSave = !savingProvider && (!!apiKey.trim() || providerSettings?.hasApiKey);
+  const canSave = !loading && !savingProvider && (!!apiKey.trim() || providerSettings?.hasApiKey);
 
   if (!isAskMode) return null;
   return (
@@ -220,65 +175,11 @@ export default function Settings() {
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Save size={16} />
-              {savingProvider ? "Saving..." : "Save Provider Settings"}
+              {loading ? "Loading..." : savingProvider ? "Saving..." : "Save Provider Settings"}
             </button>
           </section>
-
-          <section className="border-t border-white/10 pt-4 flex flex-col gap-3">
-            <div className="flex items-center gap-2 text-zinc-200">
-              <Crown size={18} />
-              <h3 className="text-sm font-semibold uppercase tracking-wide">Account Info</h3>
-            </div>
-
-            <InfoRow
-              icon={<Crown size={18} />}
-              label="Plan"
-              value={loading ? "Loading..." : userDetails?.plan || "Free"}
-            />
-            <InfoRow
-              icon={<CreditCard size={18} />}
-              label="Remaining Credits"
-              value={loading ? "Loading..." : userDetails?.creditsRemaining?.toString() || "0"}
-            />
-            <InfoRow
-              icon={<Eye size={18} />}
-              label="Image Credits"
-              value={loading ? "Loading..." : userDetails?.imageCredits?.toString() || "0"}
-            />
-            <InfoRow
-              icon={<Mic size={18} />}
-              label="Audio Credits"
-              value={loading ? "Loading..." : userDetails?.audioCredits?.toString() || "0"}
-            />
-          </section>
-        </div>
-
-        <div className="border-t border-white/10 p-2 bg-white/5">
-          <button
-            onClick={handleLogout}
-            className="flex items-center justify-center gap-2 w-full py-3 text-red-500 font-medium hover:bg-red-900/20 rounded-xl transition-colors"
-          >
-            <LogOut size={18} />
-            Logout
-          </button>
         </div>
       </div>
     </div>
   );
 }
-
-interface InfoRowProps {
-  icon: ReactNode;
-  label: string;
-  value: string;
-}
-
-const InfoRow = ({ icon, label, value }: InfoRowProps) => (
-  <div className="flex items-center justify-between py-2">
-    <div className="flex items-center gap-3 text-zinc-400">
-      {icon}
-      <span className="text-sm">{label}</span>
-    </div>
-    <span className="text-sm text-white font-medium">{value}</span>
-  </div>
-);
