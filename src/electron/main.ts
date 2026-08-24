@@ -14,6 +14,7 @@ import { NavigationService } from "./services/NavigationService.js";
 import { AudioRecordingService } from "./services/AudioRecordingService.js";
 import { PermissionService } from "./services/PermissionService.js";
 import { OAuthService } from "./services/OAuthService.js";
+import { ProviderSettingsService } from "./services/ProviderSettingsService.js";
 import { initMain } from "electron-audio-loopback";
 
 // Initialize electron-audio-loopback before app is ready
@@ -50,6 +51,8 @@ let aiService: AICommunicationService;
 let screenCaptureService: ScreenCaptureService;
 // OAuthService instance
 let oauthService: OAuthService;
+// ProviderSettingsService instance
+let providerSettingsService: ProviderSettingsService;
 export let mainWindow: BrowserWindow | null = null;
 let navigationService: NavigationService;
 let audioRecordingService: AudioRecordingService;
@@ -110,6 +113,11 @@ export function getOAuthService(): OAuthService {
   return oauthService;
 }
 
+// Export ProviderSettingsService getter for IPC handlers
+export function getProviderSettingsService(): ProviderSettingsService {
+  return providerSettingsService;
+}
+
 // Initialize AutoUpdaterService
 function initializeAutoUpdaterService(): void {
   autoUpdaterService = new AutoUpdaterService(windowManager, {
@@ -122,11 +130,14 @@ function initializeAutoUpdaterService(): void {
 
 // Initialize AICommunicationService
 function initializeAICommunicationService(): void {
-  aiService = new AICommunicationService(webSocketManager, authService, windowManager, {
-    maxRetries: 3,
-    retryDelay: 1000,
+  aiService = new AICommunicationService(windowManager, providerSettingsService, {
     requestTimeout: 30000,
   });
+}
+
+// Initialize ProviderSettingsService
+function initializeProviderSettingsService(): void {
+  providerSettingsService = new ProviderSettingsService();
 }
 
 // Initialize ScreenCaptureService
@@ -312,6 +323,7 @@ app.whenReady().then(async () => {
     initializeWebSocketManager();
     initializeAuthenticationService();
     initializeOAuthService();
+    initializeProviderSettingsService();
     initializeAutoUpdaterService();
     initializeAICommunicationService();
     initializeScreenCaptureService();

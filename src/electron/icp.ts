@@ -16,6 +16,7 @@ import {
   getScreenCaptureService,
   getAICommunicationService,
   getAuthenticationService,
+  getProviderSettingsService,
   connectWebSocket,
   getAutoUpdaterService,
   getWebSocketManager,
@@ -180,9 +181,10 @@ ipcMain.on("audio:chunk", async (_, chunk: Buffer) => {
 // Send transcription as user message
 ipcMain.on("transcription:send-audio-message", async (_, transcription: string) => {
   try {
-    const wsManager = getWebSocketManager();
-    if (wsManager) {
-      wsManager.sendUserTranscriptionMessage(transcription);
+    const aiService = getAICommunicationService();
+    const result = await aiService.startAIQuery({ type: "text", text: transcription });
+    if (!result.success && result.error) {
+      mainWindow?.webContents.send("ai:error", result.error);
     }
   } catch (error) {
     console.error("Failed to forward transcription message:", error);
@@ -414,6 +416,43 @@ ipcMain.handle("auth:oauth-start", async (_, provider: "google" | "github") => {
   } catch (error) {
     console.error("OAuth start handler error:", error);
     return { success: false, error: "Failed to start OAuth flow" };
+  }
+});
+
+// provider settings
+ipcMain.handle("provider-settings:get", () => {
+  try {
+    const providerSettings = getProviderSettingsService();
+    if (!providerSettings) {
+      return { success: false, error: "Provider settings service not available" };
+    }
+    return { success: true, data: providerSettings.getPublicSettings() };
+  } catch (error) {
+    console.error("Provider settings get error:", error);
+    return { success: false, error: "Failed to read provider settings" };
+  }
+});
+
+ipcMain.handle("provider-settings:save", (_, settings) => {
+  try {
+    const providerSettings = getProviderSettingsService();
+    if (!providerSettings) {
+      return { success: false, error: "Provider settings service not available" };
+    }
+    const data = providerSettings.saveSettings(settings);
+    return { success: true, data };
+  } catch (error) {
+    console.error("Provider settings save error:", error);
+    return { success: false, error: error instanceof Error ? error.message : "Failed to save provider settings" };
+  }
+});
+
+ipcMain.on("provider-settings:clear", () => {
+  try {
+    const providerSettings = getProviderSettingsService();
+    providerSettings?.reset();
+  } catch (error) {
+    console.error("Provider settings clear error:", error);
   }
 });
 

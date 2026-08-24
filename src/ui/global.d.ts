@@ -1,4 +1,4 @@
-import type { QluelyInput } from "./lib/types";
+import type { QluelyInput, ProviderSettings, ProviderSettingsInput } from "./lib/types";
 
 export { };
 
@@ -52,6 +52,13 @@ declare global {
       ) => Promise<{ success: boolean; error?: string }>;
       /** Listen for OAuth completion from the main process */
       onOAuthComplete: (cb: (result: { success: boolean; error?: string }) => void) => () => void;
+    };
+    providerSettings: {
+      get: () => Promise<{ success: boolean; data?: ProviderSettings; error?: string }>;
+      save: (
+        settings: ProviderSettingsInput,
+      ) => Promise<{ success: boolean; data?: ProviderSettings; error?: string }>;
+      clear: () => void;
     };
 
     overlay: {

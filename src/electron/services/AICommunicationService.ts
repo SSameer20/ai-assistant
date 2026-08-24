@@ -1,87 +1,75 @@
-import { QluelyInput, QluelyChunk, QluelyError } from "../types/protocol.js";
-import WebSocket from "ws";
-
-export interface AIMessagePayload {
-  type: string;
-  data: any;
-  metadata: { userId: string; idempotencyKey: string; timestamp: string };
-}
-
-export interface AIStreamChunk {
-  chunk: string;
-}
-
-export interface AIError {
-  error: string;
-  code?: string;
-}
+import type { QluelyInput, QluelyError } from "../types/protocol.js";
+import type { ProviderSettingsService, AIProvider, ProviderSettings } from "./ProviderSettingsService.js";
 
 export interface AICommunicationConfig {
-  maxRetries?: number;
-  retryDelay?: number;
   requestTimeout?: number;
+  defaultOpenAIModel?: string;
+  defaultAnthropicModel?: string;
+  defaultGeminiModel?: string;
+}
+
+type ProviderChunk = { type: "answer"; delta: string } | { type: "start" } | { type: "end" };
+
+interface ProviderMessageResult {
+  success: boolean;
+  error?: string;
+}
+
+interface LLMMessagePart {
+  type: "text" | "image";
+  text?: string;
+  mimeType?: string;
+  base64?: string;
 }
 
 export class AICommunicationService {
-  private webSocketManager: any;
-  private authService: any;
   private windowManager: any;
+  private providerSettingsService: ProviderSettingsService;
   private config: AICommunicationConfig;
 
   constructor(
-    webSocketManager: any,
-    authService: any,
     windowManager: any,
+    providerSettingsService: ProviderSettingsService,
     config: Partial<AICommunicationConfig> = {},
   ) {
-    this.webSocketManager = webSocketManager;
-    this.authService = authService;
     this.windowManager = windowManager;
-    this.config = { maxRetries: 3, retryDelay: 1000, requestTimeout: 30000, ...config };
+    this.providerSettingsService = providerSettingsService;
+    this.config = {
+      requestTimeout: 60000,
+      defaultOpenAIModel: "gpt-4o-mini",
+      defaultAnthropicModel: "claude-3-5-sonnet-latest",
+      defaultGeminiModel: "gemini-2.0-flash",
+      ...config,
+    };
 
     console.log("AICommunicationService initialized", this.config);
   }
 
-  /**
-   * Start an AI conversation with the provided input
-   */
-  public async startAIQuery(input: QluelyInput): Promise<{ success: boolean; error?: string }> {
+  public async startAIQuery(input: QluelyInput): Promise<ProviderMessageResult> {
     try {
-      // Check authentication
-      if (!this.authService.isAuthenticated()) {
-        const error = "User not authenticated";
+      if (!this.validateInput(input)) {
+        const error = "Invalid input format";
         this.notifyError(error);
         return { success: false, error };
       }
 
-      // Check WebSocket connection
-      const socket = this.webSocketManager?.getSocket();
-      if (!socket || socket.readyState !== WebSocket.OPEN) {
-        const error = "WebSocket not connected";
+      const settings = this.providerSettingsService.getSettings();
+      if (!settings) {
+        const error = "No provider configuration saved. Open Settings and add your API key.";
         this.notifyError(error);
         return { success: false, error };
       }
 
-      // Create payload based on input type
-      const payload = this.createPayload(input);
-      if (!payload) {
-        const error = "Invalid input type";
-        this.notifyError(error);
-        return { success: false, error };
+      this.emitChunk({ type: "start" });
+
+      const result = await this.queryProvider(settings, input);
+
+      if (!result.success && result.error) {
+        this.notifyError(result.error);
+        return result;
       }
 
-      // Create envelope with metadata
-      const envelope = this.createEnvelope(payload);
-
-      // Send message via WebSocketManager so meetingId metadata is attached
-      this.webSocketManager?.sendMessage(envelope);
-
-      console.log("AI query started successfully", {
-        type: input.type,
-        hasText: !!input.text,
-        hasImage: !!(input as any).image,
-      });
-
+      this.emitChunk({ type: "end" });
       return { success: true };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -91,57 +79,337 @@ export class AICommunicationService {
     }
   }
 
-  /**
-   * Create message payload based on input type
-   */
-  private createPayload(input: QluelyInput): any {
-    switch (input.type) {
-      case "text":
-        return { type: "user:message", data: { text: input.text } };
-
-      case "image":
-        return {
-          type: "user:image",
-          data: {
-            text: input.text,
-            image: { mimeType: input.image.mimeType, base64: input.image.base64 },
-          },
-        };
-
-      case "mixed":
-        return {
-          type: "user:media",
-          data: {
-            text: input.text,
-            image: { mimeType: input.image.mimeType, base64: input.image.base64 },
-          },
-        };
-
+  private async queryProvider(
+    settings: ProviderSettings,
+    input: QluelyInput,
+  ): Promise<ProviderMessageResult> {
+    switch (settings.provider) {
+      case "openai":
+        return this.queryOpenAI(settings, input);
+      case "anthropic":
+        return this.queryAnthropic(settings, input);
+      case "gemini":
+        return this.queryGemini(settings, input);
       default:
-        console.error("Unknown input type:", (input as any).type);
-        return null;
+        return { success: false, error: `Unsupported provider: ${(settings as any).provider}` };
     }
   }
 
-  /**
-   * Create message envelope with metadata
-   */
-  private createEnvelope(payload: any): AIMessagePayload {
-    const user = this.authService?.getCurrentSession();
-
-    return {
-      ...payload,
-      metadata: {
-        userId: user?.userId || "",
-        idempotencyKey: crypto.randomUUID(),
-        timestamp: new Date().toISOString(),
-      },
-    };
+  private buildPrompt(input: QluelyInput): string {
+    return input.text.trim();
   }
 
-  /**
-   * Notify renderer of AI error
-   */
+  private buildMultimodalParts(input: QluelyInput): LLMMessagePart[] {
+    const parts: LLMMessagePart[] = [{ type: "text", text: this.buildPrompt(input) }];
+
+    if (input.type === "image" || input.type === "mixed") {
+      parts.push({
+        type: "image",
+        mimeType: input.image.mimeType,
+        base64: input.image.base64,
+      });
+    }
+
+    return parts;
+  }
+
+  private async queryOpenAI(settings: ProviderSettings, input: QluelyInput): Promise<ProviderMessageResult> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.config.requestTimeout);
+
+    try {
+      const model = settings.model || this.config.defaultOpenAIModel || "gpt-4o-mini";
+      const messages: any[] = [
+        {
+          role: "user",
+          content: this.buildOpenAIContent(input),
+        },
+      ];
+
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${settings.apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          stream: true,
+        }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok || !response.body) {
+        return { success: false, error: await this.readErrorResponse(response, "OpenAI request failed") };
+      }
+
+      return await this.consumeSseStream(response, (eventName, data) => {
+        if (data === "[DONE]") {
+          return;
+        }
+
+        try {
+          const payload = JSON.parse(data);
+          const delta = payload?.choices?.[0]?.delta?.content;
+          if (typeof delta === "string" && delta.length > 0) {
+            this.emitChunk({ type: "answer", delta });
+          }
+        } catch (error) {
+          console.warn("[AICommunicationService] Failed to parse OpenAI chunk:", eventName, error);
+        }
+      });
+    } catch (error) {
+      return { success: false, error: this.normalizeError(error, "OpenAI request failed") };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  private buildOpenAIContent(input: QluelyInput): any[] | string {
+    if (input.type === "text") {
+      return this.buildPrompt(input);
+    }
+
+    const content: any[] = [{ type: "text", text: this.buildPrompt(input) }];
+    content.push({
+      type: "image_url",
+      image_url: {
+        url: `data:${input.image.mimeType};base64,${input.image.base64}`,
+      },
+    });
+    return content;
+  }
+
+  private async queryAnthropic(
+    settings: ProviderSettings,
+    input: QluelyInput,
+  ): Promise<ProviderMessageResult> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.config.requestTimeout);
+
+    try {
+      const model = settings.model || this.config.defaultAnthropicModel || "claude-3-5-sonnet-latest";
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": settings.apiKey,
+          "anthropic-version": "2023-06-01",
+          Accept: "text/event-stream",
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: 4096,
+          stream: true,
+          messages: [
+            {
+              role: "user",
+              content: this.buildAnthropicContent(input),
+            },
+          ],
+        }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok || !response.body) {
+        return { success: false, error: await this.readErrorResponse(response, "Anthropic request failed") };
+      }
+
+      return await this.consumeSseStream(response, (_eventName, data) => {
+        try {
+          const payload = JSON.parse(data);
+          if (payload.type === "content_block_delta" && payload.delta?.type === "text_delta") {
+            const delta = payload.delta?.text;
+            if (typeof delta === "string" && delta.length > 0) {
+              this.emitChunk({ type: "answer", delta });
+            }
+          }
+        } catch (error) {
+          if (data !== "[DONE]") {
+            console.warn("[AICommunicationService] Failed to parse Anthropic chunk:", error);
+          }
+        }
+      });
+    } catch (error) {
+      return { success: false, error: this.normalizeError(error, "Anthropic request failed") };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  private buildAnthropicContent(input: QluelyInput): any[] {
+    const parts = this.buildMultimodalParts(input);
+    const imageInput = input.type === "text" ? null : input.image;
+
+    return parts.map((part) => {
+      if (part.type === "text") {
+        return { type: "text", text: part.text || "" };
+      }
+
+      if (!imageInput) {
+        return { type: "text", text: part.text || "" };
+      }
+
+      return {
+        type: "image",
+        source: {
+          type: "base64",
+          media_type: part.mimeType || imageInput.mimeType,
+          data: part.base64 || imageInput.base64,
+        },
+      };
+    });
+  }
+
+  private async queryGemini(
+    settings: ProviderSettings,
+    input: QluelyInput,
+  ): Promise<ProviderMessageResult> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.config.requestTimeout);
+
+    try {
+      const model = settings.model || this.config.defaultGeminiModel || "gemini-2.0-flash";
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(settings.apiKey)}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                role: "user",
+                parts: this.buildGeminiParts(input),
+              },
+            ],
+          }),
+          signal: controller.signal,
+        },
+      );
+
+      if (!response.ok) {
+        return { success: false, error: await this.readErrorResponse(response, "Gemini request failed") };
+      }
+
+      const payload = await response.json();
+      const text = this.extractGeminiText(payload);
+      if (text) {
+        this.emitChunk({ type: "answer", delta: text });
+      }
+
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: this.normalizeError(error, "Gemini request failed") };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  private buildGeminiParts(input: QluelyInput): any[] {
+    const parts: any[] = [{ text: this.buildPrompt(input) }];
+    const imageInput = input.type === "text" ? null : input.image;
+
+    if (imageInput) {
+      parts.push({
+        inlineData: {
+          mimeType: imageInput.mimeType,
+          data: imageInput.base64,
+        },
+      });
+    }
+
+    return parts;
+  }
+
+  private extractGeminiText(payload: any): string {
+    const candidates = payload?.candidates || [];
+    const firstCandidate = candidates[0];
+    const parts = firstCandidate?.content?.parts || [];
+
+    return parts
+      .map((part: any) => (typeof part?.text === "string" ? part.text : ""))
+      .join("")
+      .trim();
+  }
+
+  private async consumeSseStream(
+    response: Response,
+    onEvent: (eventName: string, data: string) => void,
+  ): Promise<ProviderMessageResult> {
+    const reader = response.body?.getReader();
+    if (!reader) {
+      return { success: false, error: "Streaming response body unavailable" };
+    }
+
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let eventName = "message";
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) {
+        break;
+      }
+
+      buffer += decoder.decode(value, { stream: true });
+      let separatorIndex = buffer.indexOf("\n\n");
+
+      while (separatorIndex !== -1) {
+        const eventBlock = buffer.slice(0, separatorIndex);
+        buffer = buffer.slice(separatorIndex + 2);
+
+        const lines = eventBlock.split(/\r?\n/);
+        let data = "";
+        eventName = "message";
+
+        for (const line of lines) {
+          if (line.startsWith("event:")) {
+            eventName = line.slice(6).trim();
+          } else if (line.startsWith("data:")) {
+            data += `${line.slice(5).trim()}\n`;
+          }
+        }
+
+        if (data.trim().length > 0) {
+          onEvent(eventName, data.trim());
+        }
+
+        separatorIndex = buffer.indexOf("\n\n");
+      }
+    }
+
+    return { success: true };
+  }
+
+  private async readErrorResponse(response: Response, fallback: string): Promise<string> {
+    try {
+      const text = await response.text();
+      if (!text) {
+        return `${fallback} (${response.status})`;
+      }
+
+      try {
+        const parsed = JSON.parse(text);
+        return parsed?.error?.message || parsed?.message || parsed?.error || text;
+      } catch {
+        return text;
+      }
+    } catch {
+      return `${fallback} (${response.status})`;
+    }
+  }
+
+  private emitChunk(chunk: ProviderChunk): void {
+    try {
+      this.windowManager?.sendMessage("ai:chunk", JSON.stringify(chunk));
+    } catch (error) {
+      console.error("Failed to send AI chunk:", error);
+    }
+  }
+
   private notifyError(error: string): void {
     try {
       this.windowManager?.sendMessage("ai:error", error);
@@ -150,9 +418,6 @@ export class AICommunicationService {
     }
   }
 
-  /**
-   * Validate input format
-   */
   public validateInput(input: any): input is QluelyInput {
     if (!input || typeof input !== "object") {
       return false;
@@ -165,7 +430,6 @@ export class AICommunicationService {
     switch (input.type) {
       case "text":
         return typeof input.text === "string";
-
       case "image":
       case "mixed":
         return (
@@ -174,15 +438,11 @@ export class AICommunicationService {
           typeof input.image.mimeType === "string" &&
           typeof input.image.base64 === "string"
         );
-
       default:
         return false;
     }
   }
 
-  /**
-   * Format error for frontend consumption
-   */
   public formatError(error: unknown): QluelyError {
     if (error instanceof Error) {
       return { message: error.message };
@@ -195,48 +455,44 @@ export class AICommunicationService {
     return { message: "Unknown error occurred" };
   }
 
-  /**
-   * Check if AI service is ready
-   */
   public isReady(): boolean {
-    const isAuthenticated = this.authService?.isAuthenticated();
-    const socket = this.webSocketManager?.getSocket();
-    const isConnected = socket && socket.readyState === WebSocket.OPEN;
-
-    return isAuthenticated && isConnected;
+    return this.providerSettingsService.hasValidSettings();
   }
 
-  /**
-   * Get current service status
-   */
-  public getStatus(): { authenticated: boolean; connected: boolean; ready: boolean } {
-    const authenticated = this.authService?.isAuthenticated() || false;
-    const socket = this.webSocketManager?.getSocket();
-    const connected = socket && socket.readyState === WebSocket.OPEN;
-
-    return { authenticated, connected: !!connected, ready: authenticated && !!connected };
+  public getStatus(): { ready: boolean; providerConfigured: boolean; provider: AIProvider | null } {
+    const settings = this.providerSettingsService.getPublicSettings();
+    return {
+      ready: !!settings.provider && settings.hasApiKey,
+      providerConfigured: settings.hasApiKey,
+      provider: settings.provider,
+    };
   }
 
-  /**
-   * Get configuration
-   */
   public getConfig(): AICommunicationConfig {
     return { ...this.config };
   }
 
-  /**
-   * Update configuration
-   */
   public updateConfig(newConfig: Partial<AICommunicationConfig>): void {
     this.config = { ...this.config, ...newConfig };
     console.log("AICommunicationService configuration updated", this.config);
   }
 
-  /**
-   * Cleanup resources
-   */
   public destroy(): void {
-    // No resources to cleanup currently
     console.log("AICommunicationService: Cleaned up resources");
+  }
+
+  private normalizeError(error: unknown, fallback: string): string {
+    if (error instanceof Error) {
+      if (error.name === "AbortError") {
+        return `${fallback} timed out`;
+      }
+      return error.message || fallback;
+    }
+
+    if (typeof error === "string") {
+      return error;
+    }
+
+    return fallback;
   }
 }

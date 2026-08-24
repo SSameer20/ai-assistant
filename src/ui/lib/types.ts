@@ -17,6 +17,23 @@ export const WsEventType = {
 } as const;
 
 export type WsEvent = (typeof WsEventType)[keyof typeof WsEventType];
+export type AIProvider = "openai" | "anthropic" | "gemini";
+
+export interface ProviderSettings {
+  provider: AIProvider | null;
+  model: string;
+  sttModel: string;
+  hasApiKey: boolean;
+  updatedAt: string | null;
+}
+
+export interface ProviderSettingsInput {
+  provider: AIProvider;
+  apiKey?: string;
+  model?: string;
+  sttModel?: string;
+}
+
 export interface BaseMessage {
   type: WsEvent;
   metadata: { userId: string; idempotencyKey: string; timestamp?: string };

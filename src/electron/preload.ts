@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from "electron";
 import { QluelyInput } from "./types/protocol.js";
+import type { ProviderSettings, ProviderSettingsInput } from "../ui/lib/types.js";
 
 contextBridge.exposeInMainWorld("qluely", {
   start: (payload: QluelyInput) => ipcRenderer.send("ai:start", payload),
@@ -102,6 +103,14 @@ contextBridge.exposeInMainWorld("auth", {
     ipcRenderer.on("auth:oauth-complete", handler);
     return () => ipcRenderer.removeListener("auth:oauth-complete", handler);
   },
+});
+
+contextBridge.exposeInMainWorld("providerSettings", {
+  get: async (): Promise<{ success: boolean; data?: ProviderSettings; error?: string }> =>
+    ipcRenderer.invoke("provider-settings:get"),
+  save: async (settings: ProviderSettingsInput): Promise<{ success: boolean; data?: ProviderSettings; error?: string }> =>
+    ipcRenderer.invoke("provider-settings:save", settings),
+  clear: (): void => ipcRenderer.send("provider-settings:clear"),
 });
 // Quota Events API
 contextBridge.exposeInMainWorld("quota", {
