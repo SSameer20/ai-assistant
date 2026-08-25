@@ -197,7 +197,7 @@ function initializeAuthenticationService(): void {
       }
 
       if (!isAuthenticated) {
-        windowManager?.sendMessage("nav:change", "/settings");
+        console.log("Auth is disabled for startup access; keeping the current view");
       }
     },
     onTokenExpired: () => {
@@ -412,7 +412,7 @@ export function clearUser() {
   webSocketManager?.disconnect();
   socket = null;
 
-  mainWindow?.webContents.send("nav:change", "/settings");
+  mainWindow?.webContents.send("nav:change", "/");
   // Alternative: windowManager.sendMessage("nav:change", "/settings");
 
   // Reset logout flag after navigation

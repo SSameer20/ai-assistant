@@ -17,7 +17,7 @@ export const initialState: GlobalState = {
     quotaAlert: { visible: false, message: "", remainingCredits: undefined },
     quotaExhausted: { visible: false, message: "" },
   },
-  ask: { isAskMode: false },
+  ask: { isAskMode: true },
   websocket: { isConnected: false },
 };
 
