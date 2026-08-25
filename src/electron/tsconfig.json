@@ -3,6 +3,7 @@
     "strict": true,
     "target": "esnext",
     "module": "nodenext",
+    "rootDir": "../",
     "outDir": "../../dist-app",
     "skipLibCheck": true
   }

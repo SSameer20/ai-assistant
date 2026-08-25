@@ -118,6 +118,15 @@ ipcMain.on("ai:start", async (event, input: QluelyInput) => {
       return;
     }
 
+    if (!getProviderSettingsService().hasValidSettings()) {
+      event.sender.send(
+        "ai:error",
+        "No API key configured. Open Settings to add your provider API key.",
+      );
+      event.sender.send("nav:change", "/settings");
+      return;
+    }
+
     const result = await aiService.startAIQuery(input);
     if (!result.success && result.error) {
       event.sender.send("ai:error", result.error);

@@ -1,13 +1,8 @@
 import "../App.css";
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Navigation from "../components/Navigation";
-import {
-  useScreenshotState,
-  useChatState,
-  useAppState,
-  useAskState,
-  useDispatch,
-} from "../store";
+import { useScreenshotState, useChatState, useAppState, useAskState, useDispatch } from "../store";
 import { type QluelyInput, type StreamChunk } from "../lib/types";
 import { parseDataUrl } from "../helper/image";
 import { CircleX, Send } from "lucide-react";
@@ -20,6 +15,7 @@ import { Spinner } from "./ui/spinner";
 import Transcription from "./Transcription";
 
 export default function Home() {
+  const navigate = useNavigate();
   const resultRef = useRef<HTMLDivElement>(null);
   const processedImageRef = useRef<string | null>(null);
 
@@ -171,6 +167,18 @@ export default function Home() {
       setLoading(false);
       stopStreaming();
 
+      if (
+        msg?.toLowerCase().includes("api key") ||
+        msg?.toLowerCase().includes("provider configuration")
+      ) {
+        navigate("/settings", {
+          state: {
+            providerMessage: "No API key configured. Add your provider API key to send requests.",
+          },
+        });
+        return;
+      }
+
       // Show specific error message instead of generic "Please Try Again"
       if (msg && msg.toLowerCase().includes("quota")) {
         setResult("Provider error");
@@ -184,7 +192,7 @@ export default function Home() {
     });
 
     return () => off(); // cleanup on unmount
-  }, [image, reset, setLoading, setPrompt, setResult, stopStreaming]);
+  }, [image, navigate, reset, setLoading, setPrompt, setResult, stopStreaming]);
 
   const handleClearScreen = () => {
     setPrompt("");

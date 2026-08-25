@@ -1,4 +1,5 @@
 import { useLayoutEffect, useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import Navigation from "./Navigation";
 import { useAskState } from "../store";
 import { Save, KeyRound, SlidersHorizontal } from "lucide-react";
@@ -11,6 +12,7 @@ const PROVIDER_OPTIONS: Array<{ value: AIProvider; label: string }> = [
 ];
 
 export default function Settings() {
+  const location = useLocation();
   const { isAskMode } = useAskState();
   const [providerSettings, setProviderSettings] = useState<ProviderSettings | null>(null);
   const [provider, setProvider] = useState<AIProvider>("openai");
@@ -20,7 +22,9 @@ export default function Settings() {
   const [loading, setLoading] = useState(false);
   const [savingProvider, setSavingProvider] = useState(false);
   const [providerError, setProviderError] = useState("");
-  const [providerMessage, setProviderMessage] = useState("");
+  const [providerMessage, setProviderMessage] = useState(
+    (location.state as { providerMessage?: string } | null)?.providerMessage || "",
+  );
 
   useEffect(() => {
     async function loadProviderSettings() {
@@ -94,11 +98,16 @@ export default function Settings() {
     }
   }
 
-  const keyPlaceholder = providerSettings?.hasApiKey ? "Stored securely on this device" : "Paste your API key";
+  const keyPlaceholder = providerSettings?.hasApiKey
+    ? "Stored securely on this device"
+    : "Paste your API key";
   const canSave = !loading && !savingProvider && (!!apiKey.trim() || providerSettings?.hasApiKey);
 
   return (
-    <div className="flex flex-col gap-3 p-6 bg-transparent min-w-150 items-center" data-main-container>
+    <div
+      className="flex flex-col gap-3 p-6 bg-transparent min-w-150 items-center"
+      data-main-container
+    >
       <Navigation />
 
       <div className="w-full bg-zinc-900/65 backdrop-blur-2xl border border-white/15 rounded-2xl overflow-hidden">
@@ -140,7 +149,8 @@ export default function Settings() {
                   />
                 </div>
                 <span className="text-[11px] text-zinc-500">
-                  Stored locally in the app data folder and encrypted with OS-backed storage when available.
+                  Stored locally in the app data folder and encrypted with OS-backed storage when
+                  available.
                 </span>
               </label>
 

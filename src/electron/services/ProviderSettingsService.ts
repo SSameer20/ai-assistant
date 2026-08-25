@@ -1,5 +1,5 @@
 import electronMain from "electron/main";
-const { safeStorage } = electronMain;
+const { app } = electronMain;
 import Store from "electron-store";
 
 export type AIProvider = "openai" | "anthropic" | "gemini";
@@ -31,7 +31,6 @@ interface ProviderStoreShape {
   provider?: AIProvider;
   model?: string;
   sttModel?: string;
-  apiKeyEnc?: string;
   apiKeyPlain?: string;
   updatedAt?: string;
 }
@@ -46,7 +45,10 @@ export class ProviderSettingsService {
   private store: Store<ProviderStoreShape>;
 
   constructor() {
-    this.store = new Store<ProviderStoreShape>({ name: "provider-settings" });
+    this.store = new Store<ProviderStoreShape>({
+      name: "provider-settings",
+      cwd: app.getPath("userData"),
+    });
   }
 
   public getDefaultModel(provider: AIProvider): string {
@@ -57,32 +59,7 @@ export class ProviderSettingsService {
     return DEFAULT_MODELS[provider].sttModel;
   }
 
-  private encryptSecret(secret: string): string {
-    if (!safeStorage.isEncryptionAvailable()) {
-      return secret;
-    }
-
-    return safeStorage.encryptString(secret).toString("base64");
-  }
-
-  private decryptSecret(secret: string): string {
-    if (!safeStorage.isEncryptionAvailable()) {
-      return secret;
-    }
-
-    return safeStorage.decryptString(Buffer.from(secret, "base64"));
-  }
-
   private readApiKey(): string | null {
-    const enc = this.store.get("apiKeyEnc");
-    if (enc) {
-      try {
-        return this.decryptSecret(enc);
-      } catch (error) {
-        console.error("[ProviderSettings] Failed to decrypt stored API key:", error);
-      }
-    }
-
     const plain = this.store.get("apiKeyPlain");
     return plain || null;
   }
@@ -137,13 +114,7 @@ export class ProviderSettingsService {
     const sttModel =
       input.sttModel?.trim() || this.store.get("sttModel") || this.getDefaultSttModel(provider);
 
-    if (safeStorage.isEncryptionAvailable()) {
-      this.store.delete("apiKeyPlain");
-      this.store.set("apiKeyEnc", this.encryptSecret(apiKey));
-    } else {
-      this.store.delete("apiKeyEnc");
-      this.store.set("apiKeyPlain", apiKey);
-    }
+    this.store.set("apiKeyPlain", apiKey);
 
     this.store.set("provider", provider);
     this.store.set("model", model);
@@ -154,7 +125,6 @@ export class ProviderSettingsService {
   }
 
   public clearApiKey(): void {
-    this.store.delete("apiKeyEnc");
     this.store.delete("apiKeyPlain");
     this.store.delete("updatedAt");
   }

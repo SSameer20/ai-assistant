@@ -400,9 +400,8 @@ app.whenReady().then(async () => {
       autoUpdaterService?.startPeriodicChecks();
     }
 
-    const hasProviderSettings = providerSettingsService.hasValidSettings();
     mainWindow?.webContents.once("did-finish-load", () => {
-      windowManager?.sendMessage("nav:change", hasProviderSettings ? "/" : "/settings");
+      windowManager?.sendMessage("nav:change", "/");
     });
   } catch (error) {
     console.error("FATAL: Failed to initialize application:", error);
