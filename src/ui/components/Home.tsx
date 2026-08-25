@@ -292,124 +292,120 @@ export default function Home() {
       className="flex flex-col gap-3 p-6 bg-transparent w-full h-full min-w-150 items-center overflow-hidden"
       data-main-container
     >
-      {/* Upgrade Overlay */}
+      {/* Top Control Bar */}
+      <Navigation send={sendImage} disabled={false} />
 
-      {/* --- Top Control Bar --- */}
-      {isAskMode && <Navigation send={sendImage} disabled={false} />}
+      <div
+        id="qluely-main-card"
+        className="w-full h-full min-h-0 flex-1 p-5 bg-zinc-900/65 backdrop-blur-2xl border border-white/15 rounded-2xl text-white flex flex-col gap-4"
+      >
+        <>
+          <div className="flex items-center gap-3 justify-center">
+            {/* System audio recorder */}
+            <Recorder disabled={false} />
 
-      {isAskMode && (
-        <div
-          id="qluely-main-card"
-          className="w-full h-full min-h-0 flex-1 p-5 bg-zinc-900/65 backdrop-blur-2xl border border-white/15 rounded-2xl text-white flex flex-col gap-4"
-        >
-          <>
-            <div className="flex items-center gap-3 justify-center">
-              {/* System audio recorder */}
-              <Recorder disabled={false} />
-
-              <div className="flex-1 flex items-center justify-center gap-1">
-                <input
-                  type="text"
-                  value={currentPrompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      send();
-                    }
-                  }}
-                  placeholder="Ask anything"
-                  disabled={isLoading}
-                  className="w-full py-1.5 px-4 bg-black/20 border border-white/10 rounded-sm outline-none focus:border-white/30 transition-all text-sm placeholder:text-zinc-500 disabled:opacity-50"
-                />
-                {currentPrompt && image ? (
-                  <button
-                    className="mx-2 flex items-center gap-0.5 h-3 hover:opacity-70 transition-opacity disabled:opacity-30 text-white/70 hover:text-white"
-                    onClick={handleExplicitSend}
-                    disabled={isLoading || (!currentPrompt.trim() && !image)}
-                    aria-label="Send message"
-                  >
-                    <Send size={16} fill="white" />
-                  </button>
-                ) : (
-                  <button
-                    className="mx-2 flex items-center gap-0.5 h-3 hover:opacity-70 transition-opacity disabled:opacity-30 text-white/70 hover:text-white"
-                    onClick={handleExplicitSend}
-                    disabled={isLoading}
-                    aria-label="Send image"
-                  >
-                    <Send size={16} fill="white" />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <Transcription onAnswer={handleTranscriptionAnswer} />
-          </>
-
-          {/* Divider */}
-          {content && <div className="h-px bg-white/10 -mx-5" />}
-
-          {/* Content display - React components */}
-          {content && (
-            <div className="ai-content flex-1 min-h-20 max-w-[80vw] relative">
-              {/* Loading indicator */}
-              {hasMounted && isLoading && (
-                <Item variant="default">
-                  <ItemMedia>
-                    <Spinner />
-                  </ItemMedia>
-                  <ItemContent>
-                    <ItemTitle className="line-clamp-1">Thinking</ItemTitle>
-                  </ItemContent>
-                </Item>
-              )}
-              {!isLoading && (
+            <div className="flex-1 flex items-center justify-center gap-1">
+              <input
+                type="text"
+                value={currentPrompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    send();
+                  }
+                }}
+                placeholder="Ask anything"
+                disabled={isLoading}
+                className="w-full py-1.5 px-4 bg-black/20 border border-white/10 rounded-sm outline-none focus:border-white/30 transition-all text-sm placeholder:text-zinc-500 disabled:opacity-50"
+              />
+              {currentPrompt && image ? (
                 <button
-                  className="absolute -top-3 -right-4 cursor-pointer opacity-50 hover:opacity-100 transition-opacity z-10"
-                  onClick={handleClearScreen}
+                  className="mx-2 flex items-center gap-0.5 h-3 hover:opacity-70 transition-opacity disabled:opacity-30 text-white/70 hover:text-white"
+                  onClick={handleExplicitSend}
+                  disabled={isLoading || (!currentPrompt.trim() && !image)}
+                  aria-label="Send message"
                 >
-                  <CircleX size={18} />
+                  <Send size={16} fill="white" />
+                </button>
+              ) : (
+                <button
+                  className="mx-2 flex items-center gap-0.5 h-3 hover:opacity-70 transition-opacity disabled:opacity-30 text-white/70 hover:text-white"
+                  onClick={handleExplicitSend}
+                  disabled={isLoading}
+                  aria-label="Send image"
+                >
+                  <Send size={16} fill="white" />
                 </button>
               )}
-              <div
-                ref={resultRef}
-                className="text-white/90 text-sm overflow-auto w-full h-full space-y-2"
-                style={{
-                  minHeight: "60px",
-                  maxWidth: "100%",
-                  wordWrap: "break-word",
-                  overflowWrap: "break-word",
-                }}
-              >
-                {/* Render finalized messages */}
-                {messages.map((message) => {
-                  return (
-                    <MessageRenderer
-                      key={message.id}
-                      message={message}
-                      onSuggestionClick={handleSuggestionClick}
-                    />
-                  );
-                })}
+            </div>
+          </div>
 
-                {/* Render streaming message */}
-                {streamingMessage && (
+          <Transcription onAnswer={handleTranscriptionAnswer} />
+        </>
+
+        {/* Divider */}
+        {content && <div className="h-px bg-white/10 -mx-5" />}
+
+        {/* Content display - React components */}
+        {content && (
+          <div className="ai-content flex-1 min-h-20 max-w-[80vw] relative">
+            {/* Loading indicator */}
+            {hasMounted && isLoading && (
+              <Item variant="default">
+                <ItemMedia>
+                  <Spinner />
+                </ItemMedia>
+                <ItemContent>
+                  <ItemTitle className="line-clamp-1">Thinking</ItemTitle>
+                </ItemContent>
+              </Item>
+            )}
+            {!isLoading && (
+              <button
+                className="absolute -top-3 -right-4 cursor-pointer opacity-50 hover:opacity-100 transition-opacity z-10"
+                onClick={handleClearScreen}
+              >
+                <CircleX size={18} />
+              </button>
+            )}
+            <div
+              ref={resultRef}
+              className="text-white/90 text-sm overflow-auto w-full h-full space-y-2"
+              style={{
+                minHeight: "60px",
+                maxWidth: "100%",
+                wordWrap: "break-word",
+                overflowWrap: "break-word",
+              }}
+            >
+              {/* Render finalized messages */}
+              {messages.map((message) => {
+                return (
                   <MessageRenderer
-                    message={streamingMessage}
+                    key={message.id}
+                    message={message}
                     onSuggestionClick={handleSuggestionClick}
                   />
-                )}
+                );
+              })}
 
-                {/* Fallback to legacy HTML content if needed */}
-                {!messages.length && !streamingMessage && result && (
-                  <div dangerouslySetInnerHTML={{ __html: result }} />
-                )}
-              </div>
+              {/* Render streaming message */}
+              {streamingMessage && (
+                <MessageRenderer
+                  message={streamingMessage}
+                  onSuggestionClick={handleSuggestionClick}
+                />
+              )}
+
+              {/* Fallback to legacy HTML content if needed */}
+              {!messages.length && !streamingMessage && result && (
+                <div dangerouslySetInnerHTML={{ __html: result }} />
+              )}
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

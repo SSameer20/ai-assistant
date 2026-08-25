@@ -79,8 +79,9 @@ export class WebSocketManager {
 
     const token = this.store.get("jwt") as string;
     if (!token) {
-      console.log("No JWT token found, cannot connect");
-      this.onMessage?.("nav:change", "/login");
+      console.log("No JWT token found, skipping WebSocket connection");
+      this.setConnectionState(ConnectionState.DISCONNECTED);
+      this.onConnectionStateChange?.(false);
       return;
     }
 

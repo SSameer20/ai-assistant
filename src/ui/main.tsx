@@ -21,12 +21,7 @@ export const MainComponent = () => {
         <TipBar />
       </div>
       {/* Scrollable content area is now managed internally by Home/App */}
-      <div
-        className={cn(
-          "flex-1 min-h-0 w-full flex justify-center items-start overflow-hidden",
-          !isAskMode && "hidden",
-        )}
-      >
+      <div className={cn("flex-1 min-h-0 w-full flex justify-center items-start overflow-hidden")}>
         <div className="w-full h-full max-w-7xl px-4 pb-4 flex flex-col items-center">
           <App />
         </div>

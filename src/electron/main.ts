@@ -1,4 +1,5 @@
-import { app, BrowserWindow, globalShortcut, screen } from "electron";
+import { app, BrowserWindow, globalShortcut } from "electron";
+import fs from "fs";
 import path from "path";
 import WebSocket from "ws";
 import { fileURLToPath } from "url";
@@ -15,11 +16,6 @@ import { AudioRecordingService } from "./services/AudioRecordingService.js";
 import { PermissionService } from "./services/PermissionService.js";
 import { OAuthService } from "./services/OAuthService.js";
 import { ProviderSettingsService } from "./services/ProviderSettingsService.js";
-import { initMain } from "electron-audio-loopback";
-
-// Initialize electron-audio-loopback before app is ready
-// This sets Chromium feature flags for system audio loopback capture
-initMain();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -34,10 +30,8 @@ process.on("unhandledRejection", (reason, promise) => {
   console.error("CRITICAL: Unhandled Rejection in Main Process:", reason);
   // Optional: send to logging service
 });
-
-export const store = new Store();
-
 // WindowManager instance
+export let store: Store;
 let windowManager: WindowManager;
 // WebSocketManager instance
 let webSocketManager: WebSocketManager;
@@ -67,14 +61,42 @@ export function getNavigationService(): NavigationService {
 export let isVisible: boolean = false;
 export let socket: WebSocket | null = null;
 let isLoggingOut = false; // Flag to prevent auto-reconnect during logout
+let audioLoopbackInitialized = false;
+
+function initializeAudioLoopback(): void {
+  if (process.platform !== "darwin") {
+    return;
+  }
+
+  // Keep dev startup minimal. The loopback package is only needed for
+  // macOS audio capture, and it can abort Electron before the window exists.
+  if (!app.isPackaged && process.env.QLUELY_ENABLE_AUDIO_LOOPBACK !== "1") {
+    console.log("Skipping audio loopback initialization in development");
+    return;
+  }
+
+  if (audioLoopbackInitialized) {
+    return;
+  }
+
+  audioLoopbackInitialized = true;
+  void import("electron-audio-loopback")
+    .then(({ initMain }) => {
+      initMain();
+      console.log("electron-audio-loopback initialized");
+    })
+    .catch((error) => {
+      audioLoopbackInitialized = false;
+      console.error("Failed to initialize electron-audio-loopback:", error);
+    });
+}
+
+initializeAudioLoopback();
 
 // Register custom protocol for deep linking
-if (process.defaultApp && process.argv.length >= 2) {
-  // If running in development with 'electron .', register qluely-dev
-  // and manually point the registry back to the electron executable with the app path
-  app.setAsDefaultProtocolClient("qluely-dev", process.execPath, [path.resolve(process.argv[1])]);
-} else {
-  // In production, just register qluely
+if (app.isPackaged) {
+  // Only touch LaunchServices in packaged builds. Keeping dev startup minimal
+  // avoids macOS launch-time aborts and keeps `npm run dev` focused on the UI.
   app.setAsDefaultProtocolClient("qluely");
 }
 
@@ -140,6 +162,10 @@ function initializeProviderSettingsService(): void {
   providerSettingsService = new ProviderSettingsService();
 }
 
+function initializeStore(): void {
+  store = new Store();
+}
+
 // Initialize ScreenCaptureService
 function initializeScreenCaptureService(): void {
   screenCaptureService = new ScreenCaptureService(windowManager);
@@ -147,9 +173,19 @@ function initializeScreenCaptureService(): void {
 
 // Initialize WindowManager
 function initializeWindowManager(): void {
+  const preloadCandidates = [path.join(__dirname, "preload.js"), path.join(__dirname, "../preload.js")];
+  const htmlCandidates = [
+    path.join(__dirname, "../dist-react/index.html"),
+    path.join(__dirname, "../../dist-react/index.html"),
+  ];
+
+  const preloadPath =
+    preloadCandidates.find((candidate) => fs.existsSync(candidate)) ?? preloadCandidates[0];
+  const htmlPath = htmlCandidates.find((candidate) => fs.existsSync(candidate)) ?? htmlCandidates[0];
+
   windowManager = new WindowManager({
-    preloadPath: path.join(__dirname, "preload.js"),
-    htmlPath: path.join(__dirname, "../dist-react/index.html"),
+    preloadPath,
+    htmlPath,
     iconPath: path.join(__dirname, "../assets/logo.png"),
   });
 }
@@ -314,6 +350,7 @@ app.whenReady().then(async () => {
     });
 
     // Initialize services early to prevent race conditions with activate event or shortcuts
+    initializeStore();
     initializeWindowManager();
     initializeProviderSettingsService();
     initializeAutoUpdaterService();
@@ -324,7 +361,11 @@ app.whenReady().then(async () => {
     audioRecordingService = new AudioRecordingService();
 
     if (process.platform === "darwin") {
-      app.dock?.hide();
+      if (app.isPackaged) {
+        app.dock?.hide();
+      } else {
+        app.dock?.show();
+      }
       const hasMicPermission = await PermissionService.ensureMicrophonePermission();
       const hasScreenPermission = await PermissionService.ensureScreenRecordingPermission();
       if (!hasMicPermission || !hasScreenPermission) {

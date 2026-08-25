@@ -25,6 +25,9 @@ export class WindowManager {
 
     this.window = new BrowserWindow({
       frame: false,
+      width: 720,
+      height: 520,
+      show: false,
       minHeight: 200,
       minWidth: 500,
       transparent: true,
@@ -59,10 +62,26 @@ export class WindowManager {
     this.window.setIgnoreMouseEvents(false);
     // Enable content protection immediately — window must never appear on screen share
     this.window.setContentProtection(true);
+    this.window.webContents.on("did-finish-load", () => {
+      console.log("Main window finished loading");
+    });
+    this.window.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL) => {
+      console.error("Main window failed to load", {
+        errorCode,
+        errorDescription,
+        validatedURL,
+      });
+    });
+    this.window.webContents.on("render-process-gone", (_event, details) => {
+      console.error("Renderer process gone", details);
+    });
     this.window.loadFile(this.options.htmlPath);
+    this.window.show();
 
     this.window.once("ready-to-show", () => {
       this.positionWindow();
+      this.window?.show();
+      this.window?.focus();
     });
 
     this.window.on("closed", () => {

@@ -40,10 +40,10 @@ export function getWindowIPCHandlers(mainWindow: BrowserWindow): IPCHandler[] {
           `,
           )
           .then((h) => {
-            const parsedH = Number.isFinite(h) ? h : 400; // default height if invalid
+            const parsedH = Number.isFinite(h) ? h : 420; // default height if invalid
             const minWidth = 400;
             const maxWidth = Math.min(1200, screenWidth - 100);
-            const minHeight = 100; // Reduced minimum for better small content handling
+            const minHeight = 260; // Keep the window usable even when content is still mounting
             const maxHeight = Math.min(parsedH + 40, screenHeight - 100); // Add padding for better spacing
             const dynamicWidth = Math.max(minWidth, Math.min(w, maxWidth));
             const dynamicHeight = Math.max(minHeight, maxHeight);
@@ -53,9 +53,9 @@ export function getWindowIPCHandlers(mainWindow: BrowserWindow): IPCHandler[] {
             }
           })
           .catch((error) => {
-            const fallbackHeight = Math.min(400, screenHeight - 100);
-            const safeW = Number.isFinite(w) ? w : 600;
-            win.setContentSize(Math.min(safeW, 600), Math.round(fallbackHeight), true);
+            const fallbackHeight = Math.min(420, screenHeight - 100);
+            const safeW = Number.isFinite(w) ? w : 720;
+            win.setContentSize(Math.min(safeW, 720), Math.round(fallbackHeight), true);
           });
       },
     },

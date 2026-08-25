@@ -97,7 +97,6 @@ export default function Settings() {
   const keyPlaceholder = providerSettings?.hasApiKey ? "Stored securely on this device" : "Paste your API key";
   const canSave = !loading && !savingProvider && (!!apiKey.trim() || providerSettings?.hasApiKey);
 
-  if (!isAskMode) return null;
   return (
     <div className="flex flex-col gap-3 p-6 bg-transparent min-w-150 items-center" data-main-container>
       <Navigation />
