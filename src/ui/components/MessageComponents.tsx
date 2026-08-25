@@ -2,10 +2,10 @@ import React from "react";
 import { CodeBlock } from "./ui/code-block";
 import type { ChatMessage } from "../store/types";
 import { TypographyBlockquote } from "./ui/typography";
+import { renderMarkdownContent } from "../helper/sanitize";
 const MermaidRenderer = React.lazy(() =>
   import("./MermaidRenderer").then((m) => ({ default: m.MermaidRenderer })),
 );
-import { parseMarkdownBold } from "../lib/types";
 
 interface MessageComponentProps {
   message: ChatMessage;
@@ -29,22 +29,11 @@ export const AnswerMessageComponent: React.FC<MessageComponentProps> = ({ messag
 
   console.log("Rendering answer message:", message);
 
-  // Split by existing newlines first, then split after every period using lookbehind
-  const lines = message.content
-    .split("\n")
-    .flatMap((line) => line.split(/(?<=\.)\s*/))
-    .filter((line) => line.trim().length > 0);
-
   return (
-    <div className="mb-3 text-white/90 leading-relaxed">
-      <ul className="list-disc pl-5 space-y-2">
-        {lines.map((line, index) => (
-          <li key={index} className="marker:text-blue-400">
-            <span dangerouslySetInnerHTML={{ __html: parseMarkdownBold(line.trim()) }} />
-          </li>
-        ))}
-      </ul>
-    </div>
+    <div
+      className="mb-3 text-white/90 leading-relaxed"
+      dangerouslySetInnerHTML={{ __html: renderMarkdownContent(message.content) }}
+    />
   );
 };
 

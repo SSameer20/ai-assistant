@@ -1,5 +1,9 @@
 import type { QluelyInput, QluelyError } from "../types/protocol.js";
-import type { ProviderSettingsService, AIProvider, ProviderSettings } from "./ProviderSettingsService.js";
+import type {
+  ProviderSettingsService,
+  AIProvider,
+  ProviderSettings,
+} from "./ProviderSettingsService.js";
 
 export interface AICommunicationConfig {
   requestTimeout?: number;
@@ -96,52 +100,42 @@ export class AICommunicationService {
   }
 
   private buildPrompt(input: QluelyInput): string {
-    return input.text.trim();
+    return `${input.text.trim()}\n\nAnswer concisely and clearly. Use Markdown headings and lists only when they improve readability; avoid repeating the prompt or adding unnecessary detail.`;
   }
 
   private buildMultimodalParts(input: QluelyInput): LLMMessagePart[] {
     const parts: LLMMessagePart[] = [{ type: "text", text: this.buildPrompt(input) }];
 
     if (input.type === "image" || input.type === "mixed") {
-      parts.push({
-        type: "image",
-        mimeType: input.image.mimeType,
-        base64: input.image.base64,
-      });
+      parts.push({ type: "image", mimeType: input.image.mimeType, base64: input.image.base64 });
     }
 
     return parts;
   }
 
-  private async queryOpenAI(settings: ProviderSettings, input: QluelyInput): Promise<ProviderMessageResult> {
+  private async queryOpenAI(
+    settings: ProviderSettings,
+    input: QluelyInput,
+  ): Promise<ProviderMessageResult> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.config.requestTimeout);
 
     try {
       const model = settings.model || this.config.defaultOpenAIModel || "gpt-4o-mini";
-      const messages: any[] = [
-        {
-          role: "user",
-          content: this.buildOpenAIContent(input),
-        },
-      ];
+      const messages: any[] = [{ role: "user", content: this.buildOpenAIContent(input) }];
 
       const response = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${settings.apiKey}`,
-        },
-        body: JSON.stringify({
-          model,
-          messages,
-          stream: true,
-        }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${settings.apiKey}` },
+        body: JSON.stringify({ model, messages, stream: true }),
         signal: controller.signal,
       });
 
       if (!response.ok || !response.body) {
-        return { success: false, error: await this.readErrorResponse(response, "OpenAI request failed") };
+        return {
+          success: false,
+          error: await this.readErrorResponse(response, "OpenAI request failed"),
+        };
       }
 
       return await this.consumeSseStream(response, (eventName, data) => {
@@ -174,9 +168,7 @@ export class AICommunicationService {
     const content: any[] = [{ type: "text", text: this.buildPrompt(input) }];
     content.push({
       type: "image_url",
-      image_url: {
-        url: `data:${input.image.mimeType};base64,${input.image.base64}`,
-      },
+      image_url: { url: `data:${input.image.mimeType};base64,${input.image.base64}` },
     });
     return content;
   }
@@ -189,7 +181,8 @@ export class AICommunicationService {
     const timeout = setTimeout(() => controller.abort(), this.config.requestTimeout);
 
     try {
-      const model = settings.model || this.config.defaultAnthropicModel || "claude-3-5-sonnet-latest";
+      const model =
+        settings.model || this.config.defaultAnthropicModel || "claude-3-5-sonnet-latest";
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
@@ -202,18 +195,16 @@ export class AICommunicationService {
           model,
           max_tokens: 4096,
           stream: true,
-          messages: [
-            {
-              role: "user",
-              content: this.buildAnthropicContent(input),
-            },
-          ],
+          messages: [{ role: "user", content: this.buildAnthropicContent(input) }],
         }),
         signal: controller.signal,
       });
 
       if (!response.ok || !response.body) {
-        return { success: false, error: await this.readErrorResponse(response, "Anthropic request failed") };
+        return {
+          success: false,
+          error: await this.readErrorResponse(response, "Anthropic request failed"),
+        };
       }
 
       return await this.consumeSseStream(response, (_eventName, data) => {
@@ -275,23 +266,19 @@ export class AICommunicationService {
         `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(settings.apiKey)}`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            contents: [
-              {
-                role: "user",
-                parts: this.buildGeminiParts(input),
-              },
-            ],
+            contents: [{ role: "user", parts: this.buildGeminiParts(input) }],
           }),
           signal: controller.signal,
         },
       );
 
       if (!response.ok) {
-        return { success: false, error: await this.readErrorResponse(response, "Gemini request failed") };
+        return {
+          success: false,
+          error: await this.readErrorResponse(response, "Gemini request failed"),
+        };
       }
 
       const payload = await response.json();
@@ -313,12 +300,7 @@ export class AICommunicationService {
     const imageInput = input.type === "text" ? null : input.image;
 
     if (imageInput) {
-      parts.push({
-        inlineData: {
-          mimeType: imageInput.mimeType,
-          data: imageInput.base64,
-        },
-      });
+      parts.push({ inlineData: { mimeType: imageInput.mimeType, data: imageInput.base64 } });
     }
 
     return parts;

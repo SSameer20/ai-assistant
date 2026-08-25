@@ -10,20 +10,11 @@ export function normalizeStreamingText(chunk: string): string {
   return (
     chunk
       // Only remove truly dangerous control characters
-      .replace(
-        /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\u2028\u2029]/g,
-        "",
-      )
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\u2028\u2029]/g, "")
       // Add word break opportunities for long URLs or code
-      .replace(
-        /(https?:\/\/[^\s]{50,})/g,
-        '<span class="ai-long-url">$1</span>',
-      )
+      .replace(/(https?:\/\/[^\s]{50,})/g, '<span class="ai-long-url">$1</span>')
       // Handle very long words that might break layout (but preserve Q&A format)
-      .replace(
-        /(?!Q\d+:)([a-zA-Z0-9_-]{30,})/g,
-        '<span class="ai-long-word">$1</span>',
-      )
+      .replace(/(?!Q\d+:)([a-zA-Z0-9_-]{30,})/g, '<span class="ai-long-word">$1</span>')
   );
 }
 
@@ -88,6 +79,48 @@ export async function renderFinalContent(markdown: string): Promise<string> {
     .replace(/^(.*)$/s, '<div class="ai-response-container">$1</div>');
 
   return DOMPurify.sanitize(raw, {
+    ALLOWED_TAGS: [
+      "h1",
+      "h2",
+      "h3",
+      "h4",
+      "p",
+      "blockquote",
+      "ul",
+      "ol",
+      "li",
+      "pre",
+      "code",
+      "br",
+      "span",
+      "strong",
+      "em",
+      "a",
+      "div",
+    ],
+    ALLOWED_ATTR: ["class", "href", "target", "style"],
+  });
+}
+
+export function renderMarkdownContent(markdown: string): string {
+  const raw = marked
+    .parse(markdown, { async: false })
+    .replace(/<h1>/g, '<h1 class="ai-heading-1">')
+    .replace(/<h2>/g, '<h2 class="ai-heading-2">')
+    .replace(/<h3>/g, '<h3 class="ai-heading-3">')
+    .replace(/<h4>/g, '<h4 class="ai-heading-4">')
+    .replace(/<p>/g, '<p class="ai-paragraph">')
+    .replace(/<blockquote>/g, '<blockquote class="ai-blockquote">')
+    .replace(/<ul>/g, '<ul class="ai-list-unordered">')
+    .replace(/<ol>/g, '<ol class="ai-list-ordered">')
+    .replace(/<li>/g, '<li class="ai-list-item">')
+    .replace(
+      /<pre><code(?: class="language-[^"]*")?>/g,
+      '<pre class="ai-code-block"><code class="ai-code-content">',
+    )
+    .replace(/<code>(?!\s)/g, '<code class="ai-code-inline">');
+
+  return DOMPurify.sanitize(`<div class="ai-response-container">${raw}</div>`, {
     ALLOWED_TAGS: [
       "h1",
       "h2",
