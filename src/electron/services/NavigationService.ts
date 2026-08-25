@@ -1,4 +1,4 @@
-import { BrowserWindow } from "electron";
+import type { BrowserWindow } from "electron/main";
 
 export interface NavigationEvent {
   route: string;
@@ -10,10 +10,7 @@ export class NavigationService {
   private mainWindow: BrowserWindow | null;
   private allowedRoutes: Set<string>;
 
-  constructor(
-    mainWindow: BrowserWindow | null,
-    allowedRoutes: string[] = ["/", "/settings"],
-  ) {
+  constructor(mainWindow: BrowserWindow | null, allowedRoutes: string[] = ["/", "/settings"]) {
     this.mainWindow = mainWindow;
     this.allowedRoutes = new Set(allowedRoutes);
   }

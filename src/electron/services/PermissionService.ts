@@ -1,4 +1,8 @@
-import { systemPreferences, shell, dialog } from "electron";
+import electronMain from "electron/main";
+import electronCommon from "electron/common";
+import { dialog } from "../electron-api.js";
+const { systemPreferences } = electronMain;
+const { shell } = electronCommon;
 
 export class PermissionService {
   /**

@@ -1,16 +1,14 @@
 import { spawn, ChildProcessWithoutNullStreams } from "child_process";
 import path from "path";
 import fs from "fs";
-import { app } from "electron";
+import electronMain from "electron/main";
+const { app } = electronMain;
 import { FFmpegPathResolver } from "../lib/FFmpegPathResolver.js";
 import {
   WindowsAudioCommands,
   WindowsAudioDevice,
 } from "../audio/platform/WindowsAudioCommands.js";
-import {
-  MacOSAudioCommands,
-  MacOSAudioDevice,
-} from "../audio/platform/MacOSAudioCommands.js";
+import { MacOSAudioCommands, MacOSAudioDevice } from "../audio/platform/MacOSAudioCommands.js";
 import { SystemAudioValidator } from "./SystemAudioValidator.js";
 
 /** Union type for devices across platforms */
@@ -67,7 +65,6 @@ export class SystemAudioRecorder {
     return this.outputPath;
   }
 
-
   /**
    * Build FFmpeg arguments based on platform and options
    */
@@ -84,7 +81,10 @@ export class SystemAudioRecorder {
 
     // Windows: use WASAPI
     if (options.deviceId) {
-      return WindowsAudioCommands.getSystemAudioCommandWithDevice(options.deviceId, this.outputPath);
+      return WindowsAudioCommands.getSystemAudioCommandWithDevice(
+        options.deviceId,
+        this.outputPath,
+      );
     }
     if (options.quality === "high") {
       return WindowsAudioCommands.getHighQualitySystemAudioCommand(this.outputPath);

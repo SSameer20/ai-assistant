@@ -1,4 +1,5 @@
-import { app } from "electron";
+import electronMain from "electron/main";
+const { app } = electronMain;
 import pkg from "electron-updater";
 import type { UpdateInfo, ProgressInfo, UpdateDownloadedEvent } from "electron-updater";
 

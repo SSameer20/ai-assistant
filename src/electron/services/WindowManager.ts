@@ -1,4 +1,6 @@
-import { BrowserWindow, screen } from "electron";
+import electronMain from "electron/main";
+import type { BrowserWindow as BrowserWindowType } from "electron/main";
+const { BrowserWindow, screen } = electronMain;
 import path from "path";
 
 export interface WindowManagerOptions {
@@ -8,7 +10,7 @@ export interface WindowManagerOptions {
 }
 
 export class WindowManager {
-  private window: BrowserWindow | null = null;
+  private window: BrowserWindowType | null = null;
   private options: WindowManagerOptions;
 
   constructor(options: WindowManagerOptions) {
@@ -18,7 +20,7 @@ export class WindowManager {
   /**
    * Creates and configures the main application window
    */
-  public createWindow(): BrowserWindow {
+  public createWindow(): BrowserWindowType {
     if (this.window && !this.window.isDestroyed()) {
       return this.window;
     }
@@ -65,13 +67,12 @@ export class WindowManager {
     this.window.webContents.on("did-finish-load", () => {
       console.log("Main window finished loading");
     });
-    this.window.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL) => {
-      console.error("Main window failed to load", {
-        errorCode,
-        errorDescription,
-        validatedURL,
-      });
-    });
+    this.window.webContents.on(
+      "did-fail-load",
+      (_event, errorCode, errorDescription, validatedURL) => {
+        console.error("Main window failed to load", { errorCode, errorDescription, validatedURL });
+      },
+    );
     this.window.webContents.on("render-process-gone", (_event, details) => {
       console.error("Renderer process gone", details);
     });
@@ -198,11 +199,7 @@ export class WindowManager {
   public setSize(width: number, height: number, animate?: boolean): void {
     if (this.window && !this.window.isDestroyed()) {
       if (Number.isFinite(width) && Number.isFinite(height)) {
-        this.window.setContentSize(
-          Math.round(width),
-          Math.round(height),
-          animate,
-        );
+        this.window.setContentSize(Math.round(width), Math.round(height), animate);
       }
     }
   }
@@ -210,7 +207,7 @@ export class WindowManager {
   /**
    * Gets the current window instance
    */
-  public getWindow(): BrowserWindow | null {
+  public getWindow(): BrowserWindowType | null {
     return this.window;
   }
 

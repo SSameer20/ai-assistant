@@ -1,4 +1,7 @@
-import { shell, app } from "electron";
+import electronMain from "electron/main";
+import electronCommon from "electron/common";
+const { app } = electronMain;
+const { shell } = electronCommon;
 import * as crypto from "crypto";
 import { CONFIG_API, API } from "../config/api.js";
 
@@ -20,10 +23,7 @@ type OAuthEventHandler = (result: OAuthResult) => void;
 
 function resolveBackendUrl(): string {
   const envUrl =
-    process.env.QLUELY_BACKEND_URL ||
-    process.env.VITE_BACKEND_URL ||
-    process.env.BACKEND_URL ||
-    "";
+    process.env.QLUELY_BACKEND_URL || process.env.VITE_BACKEND_URL || process.env.BACKEND_URL || "";
 
   return envUrl || CONFIG_API.prod.api;
 }

@@ -1,4 +1,7 @@
-import { desktopCapturer, screen, nativeImage } from "electron";
+import electronMain from "electron/main";
+import electronCommon from "electron/common";
+const { desktopCapturer, screen } = electronMain;
+const { nativeImage } = electronCommon;
 
 export interface ScreenCaptureOptions {
   format?: "png" | "jpeg";

@@ -1,4 +1,6 @@
-import { app, BrowserWindow, globalShortcut } from "electron";
+import electronMain from "electron/main";
+import type { BrowserWindow as BrowserWindowType } from "electron";
+const { app, BrowserWindow, globalShortcut } = electronMain;
 import fs from "fs";
 import path from "path";
 import WebSocket from "ws";
@@ -47,7 +49,7 @@ let screenCaptureService: ScreenCaptureService;
 let oauthService: OAuthService;
 // ProviderSettingsService instance
 let providerSettingsService: ProviderSettingsService;
-export let mainWindow: BrowserWindow | null = null;
+export let mainWindow: BrowserWindowType | null = null;
 let navigationService: NavigationService;
 let audioRecordingService: AudioRecordingService;
 // Export AudioRecordingService getter for IPC handlers
@@ -173,7 +175,10 @@ function initializeScreenCaptureService(): void {
 
 // Initialize WindowManager
 function initializeWindowManager(): void {
-  const preloadCandidates = [path.join(__dirname, "preload.js"), path.join(__dirname, "../preload.js")];
+  const preloadCandidates = [
+    path.join(__dirname, "preload.js"),
+    path.join(__dirname, "../preload.js"),
+  ];
   const htmlCandidates = [
     path.join(__dirname, "../dist-react/index.html"),
     path.join(__dirname, "../../dist-react/index.html"),
@@ -181,7 +186,8 @@ function initializeWindowManager(): void {
 
   const preloadPath =
     preloadCandidates.find((candidate) => fs.existsSync(candidate)) ?? preloadCandidates[0];
-  const htmlPath = htmlCandidates.find((candidate) => fs.existsSync(candidate)) ?? htmlCandidates[0];
+  const htmlPath =
+    htmlCandidates.find((candidate) => fs.existsSync(candidate)) ?? htmlCandidates[0];
 
   windowManager = new WindowManager({
     preloadPath,
@@ -369,7 +375,9 @@ app.whenReady().then(async () => {
       const hasMicPermission = await PermissionService.ensureMicrophonePermission();
       const hasScreenPermission = await PermissionService.ensureScreenRecordingPermission();
       if (!hasMicPermission || !hasScreenPermission) {
-        console.warn("Starting app with missing permissions. Some audio features will be disabled.");
+        console.warn(
+          "Starting app with missing permissions. Some audio features will be disabled.",
+        );
       }
     }
 

@@ -1,4 +1,5 @@
-import { safeStorage } from "electron";
+import electronMain from "electron/main";
+const { safeStorage } = electronMain;
 import Store from "electron-store";
 
 export type AIProvider = "openai" | "anthropic" | "gemini";
@@ -45,9 +46,7 @@ export class ProviderSettingsService {
   private store: Store<ProviderStoreShape>;
 
   constructor() {
-    this.store = new Store<ProviderStoreShape>({
-      name: "provider-settings",
-    });
+    this.store = new Store<ProviderStoreShape>({ name: "provider-settings" });
   }
 
   public getDefaultModel(provider: AIProvider): string {
@@ -117,7 +116,8 @@ export class ProviderSettingsService {
       model:
         (provider && this.store.get("model")) || (provider ? this.getDefaultModel(provider) : ""),
       sttModel:
-        (provider && this.store.get("sttModel")) || (provider ? this.getDefaultSttModel(provider) : ""),
+        (provider && this.store.get("sttModel")) ||
+        (provider ? this.getDefaultSttModel(provider) : ""),
       hasApiKey: !!apiKey,
       updatedAt: this.store.get("updatedAt") || null,
     };

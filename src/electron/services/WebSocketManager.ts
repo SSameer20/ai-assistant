@@ -1,5 +1,6 @@
 import WebSocket from "ws";
-import { app } from "electron";
+import electronMain from "electron/main";
+const { app } = electronMain;
 import Store from "electron-store";
 import { WsEventType } from "../types/helper.js";
 import { API, CONFIG_API } from "../config/api.js";
@@ -193,10 +194,9 @@ export class WebSocketManager {
         this.onMessage?.("quota:exhausted", { type: message.type, data: message.data });
         break;
 
-
       case WsEventType.SYSTEM_AUDIO_CHUNK:
         if (message.data?.chunk) {
-          console.log(`[AUDIO_TRANSCRIPTION] ${message.data?.chunk}`)
+          console.log(`[AUDIO_TRANSCRIPTION] ${message.data?.chunk}`);
           this.onMessage?.("system:audio:chunk", message.data.chunk);
         }
         break;
@@ -520,10 +520,7 @@ export class WebSocketManager {
 
       const message = {
         type: WsEventType.USER_AUDIO_CHUNK,
-        data: {
-          chunk: base64Audio,
-          type: "audio/wav",
-        },
+        data: { chunk: base64Audio, type: "audio/wav" },
       };
 
       this.sendMessage(message);
@@ -542,12 +539,7 @@ export class WebSocketManager {
     }
 
     try {
-      const message = {
-        type: WsEventType.USER_TRANSCRIPTION,
-        data: {
-          transcription,
-        },
-      };
+      const message = { type: WsEventType.USER_TRANSCRIPTION, data: { transcription } };
 
       this.sendMessage(message);
     } catch (error) {

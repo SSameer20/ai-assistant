@@ -90,7 +90,9 @@ contextBridge.exposeInMainWorld("nav", {
 contextBridge.exposeInMainWorld("providerSettings", {
   get: async (): Promise<{ success: boolean; data?: ProviderSettings; error?: string }> =>
     ipcRenderer.invoke("provider-settings:get"),
-  save: async (settings: ProviderSettingsInput): Promise<{ success: boolean; data?: ProviderSettings; error?: string }> =>
+  save: async (
+    settings: ProviderSettingsInput,
+  ): Promise<{ success: boolean; data?: ProviderSettings; error?: string }> =>
     ipcRenderer.invoke("provider-settings:save", settings),
   clear: (): void => ipcRenderer.send("provider-settings:clear"),
 });
@@ -231,7 +233,6 @@ async function doSystemAudioInit() {
       };
     }
 
-    await ipcRenderer.invoke("enable-loopback-audio");
     const stream: MediaStream = await navigator.mediaDevices.getDisplayMedia({
       video: true,
       audio: true,
@@ -240,7 +241,6 @@ async function doSystemAudioInit() {
       track.stop();
       stream.removeTrack(track);
     });
-    await ipcRenderer.invoke("disable-loopback-audio");
     loopbackStream = stream;
 
     const WAV_SAMPLE_RATE = 16000;
@@ -395,7 +395,7 @@ async function doUserAudioInit() {
 
     userProcessorNode.onaudioprocess = (e: any) => {
       if (!isUserRecordingActive) return;
-      
+
       const inputData = e.inputBuffer.getChannelData(0);
       pcmBuffers.push(new Float32Array(inputData));
 

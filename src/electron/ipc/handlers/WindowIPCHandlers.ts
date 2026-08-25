@@ -1,7 +1,10 @@
-import { BrowserWindow, ipcMain, screen } from "electron";
+import electronMain from "electron/main";
+import type { BrowserWindow as BrowserWindowType } from "electron/main";
+import { ipcMain } from "../../electron-api.js";
+const { BrowserWindow, screen } = electronMain;
 import { IPCHandler } from "../IPCHandlerRegistry.js";
 
-export function getWindowIPCHandlers(mainWindow: BrowserWindow): IPCHandler[] {
+export function getWindowIPCHandlers(mainWindow: BrowserWindowType): IPCHandler[] {
   return [
     {
       channel: "window:fit",
@@ -47,7 +50,7 @@ export function getWindowIPCHandlers(mainWindow: BrowserWindow): IPCHandler[] {
             const maxHeight = Math.min(parsedH + 40, screenHeight - 100); // Add padding for better spacing
             const dynamicWidth = Math.max(minWidth, Math.min(w, maxWidth));
             const dynamicHeight = Math.max(minHeight, maxHeight);
-            
+
             if (Number.isFinite(dynamicWidth) && Number.isFinite(dynamicHeight)) {
               win.setContentSize(Math.round(dynamicWidth), Math.round(dynamicHeight), true);
             }

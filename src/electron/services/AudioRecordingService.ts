@@ -1,7 +1,8 @@
 import { spawn, ChildProcessWithoutNullStreams } from "child_process";
 import path from "path";
 import fs from "fs";
-import { app } from "electron";
+import electronMain from "electron/main";
+const { app } = electronMain;
 import { SystemAudioRecorder } from "../audio/SystemAudioRecorder.js";
 import { FFmpegPathResolver } from "../lib/FFmpegPathResolver.js";
 
@@ -80,8 +81,6 @@ export class AudioRecordingService {
   public getStatus(): { isRecording: boolean; outputPath: string } {
     return { isRecording: this.isRecording, outputPath: this.outputPath };
   }
-
-
 
   /**
    * Cleanup resources

@@ -1,4 +1,5 @@
-import { app } from "electron";
+import electronMain from "electron/main";
+const { app } = electronMain;
 import path from "path";
 import fs from "fs";
 
@@ -96,7 +97,6 @@ export class FFmpegPathResolver {
     }
     return paths;
   }
-
 
   /**
    * Verify FFmpeg installation and get version

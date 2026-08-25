@@ -8,11 +8,11 @@
     "email": "sameer@qluely.in"
   },
   "type": "module",
-  "main": "dist-app/main.js",
+  "main": "dist-app/electron/main.js",
   "scripts": {
     "dev": "npm run build:web-dev && npm run build:app && npm run dev:app",
     "dev:web": "vite",
-    "dev:app": "electron .",
+    "dev:app": "env -u ELECTRON_RUN_AS_NODE electron .",
     "build": "npm run build:web && npm run build:app",
     "build:web": "tsc -b && vite build",
     "build:web-dev": "tsc -b && vite build --mode development",

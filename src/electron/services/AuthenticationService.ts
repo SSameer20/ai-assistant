@@ -1,14 +1,12 @@
-import { app, safeStorage } from "electron";
+import electronMain from "electron/main";
+const { app, safeStorage } = electronMain;
 import Store from "electron-store";
 import { API, CONFIG_API } from "../config/api.js";
 import type { OAuthService, OAuthProvider } from "./OAuthService.js";
 
 function resolveBackendUrl(): string {
   const envUrl =
-    process.env.QLUELY_BACKEND_URL ||
-    process.env.VITE_BACKEND_URL ||
-    process.env.BACKEND_URL ||
-    "";
+    process.env.QLUELY_BACKEND_URL || process.env.VITE_BACKEND_URL || process.env.BACKEND_URL || "";
 
   return envUrl || CONFIG_API.prod.api;
 }
@@ -239,7 +237,10 @@ export class AuthenticationService {
         }
       }
 
-      console.error("Login failed:", parsedBody || rawBody || `<empty response body, status=${response.status}>`);
+      console.error(
+        "Login failed:",
+        parsedBody || rawBody || `<empty response body, status=${response.status}>`,
+      );
 
       if (parsedBody?.errors) {
         // Handle validation errors
@@ -264,7 +265,9 @@ export class AuthenticationService {
 
       return {
         success: false,
-        error: responseMessage || `Server error: ${response.status}${response.statusText ? ` ${response.statusText}` : ""}`,
+        error:
+          responseMessage ||
+          `Server error: ${response.status}${response.statusText ? ` ${response.statusText}` : ""}`,
       };
     } catch {
       return {

@@ -2,7 +2,8 @@ import { IPCHandler } from "../IPCHandlerRegistry.js";
 import { getAudioRecordingService, getWebSocketManager } from "../../main.js";
 import path from "path";
 import fs from "fs";
-import { app } from "electron";
+import electronMain from "electron/main";
+const { app } = electronMain;
 
 export function getAudioIPCHandlers(): IPCHandler[] {
   return [

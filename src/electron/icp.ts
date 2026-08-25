@@ -1,14 +1,10 @@
 // navigation
 
-import {
-  app,
-  BrowserWindow,
-  globalShortcut,
-  ipcMain,
-  screen,
-  systemPreferences,
-  shell,
-} from "electron";
+import electronMain from "electron/main";
+import electronCommon from "electron/common";
+import { ipcMain } from "./electron-api.js";
+const { app, BrowserWindow, globalShortcut, screen, systemPreferences } = electronMain;
+const { shell } = electronCommon;
 import path from "path";
 import {
   clearUser,
@@ -142,7 +138,9 @@ async function transcribeAudioChunk(chunk: Buffer): Promise<void> {
     }
 
     if (settings.provider !== "openai") {
-      console.warn(`Audio transcription is currently wired for OpenAI only, not ${settings.provider}`);
+      console.warn(
+        `Audio transcription is currently wired for OpenAI only, not ${settings.provider}`,
+      );
       return;
     }
 
@@ -152,9 +150,7 @@ async function transcribeAudioChunk(chunk: Buffer): Promise<void> {
 
     const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${settings.apiKey}`,
-      },
+      headers: { Authorization: `Bearer ${settings.apiKey}` },
       body: formData,
     });
 
@@ -403,7 +399,10 @@ ipcMain.handle("provider-settings:save", (_, settings) => {
     return { success: true, data };
   } catch (error) {
     console.error("Provider settings save error:", error);
-    return { success: false, error: error instanceof Error ? error.message : "Failed to save provider settings" };
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to save provider settings",
+    };
   }
 });
 

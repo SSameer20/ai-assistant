@@ -1,4 +1,4 @@
-import { IpcMain, IpcMainInvokeEvent, IpcMainEvent } from "electron";
+import type { IpcMain, IpcMainInvokeEvent, IpcMainEvent } from "electron/main";
 
 export type IPCHandler = {
   channel: string;
