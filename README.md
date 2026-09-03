@@ -40,20 +40,40 @@ resources/ffmpeg/darwin/ffmpeg        # macOS
 The directory is gitignored, so this step must be re-run on a fresh clone and in CI.
 It is idempotent — it exits immediately if the binary is already present.
 
-### Configuration
+## Usage
 
-The provider API key is entered in the app's **Settings** screen and stored via
-`electron-store`. It is not read from a `.env` file.
+```
+git clone https://github.com/SSameer20/ai-assistant.git
+```
+```
+cd ai-assistant
+```
+```
+npm install
+npm run setup
+npm run build
+npm run win-app
+```
 
-Backend endpoints can be overridden with real environment variables (nothing loads
-`.env` automatically — there is no `dotenv` dependency):
+Installer lands in release\ as Clever AI Setup 2.0.7.exe. Run it to install (per-user, no admin prompt).
 
-| Variable | Default |
-| --- | --- |
-| `QLUELY_BACKEND_URL` | `https://api.cleverr.tech` |
-| `QLUELY_WS_URL` | `wss://api.cleverr.tech` |
-| `QLUELY_ENABLE_AUDIO_LOOPBACK` | unset — set to `1` to enable macOS loopback in dev |
-
+What each step does
+```
+┌─────────────┬─────────────────────────────────────────────────────────────────────────────────────────┐
+│    Step     │                                         Purpose                                         │
+├─────────────┼─────────────────────────────────────────────────────────────────────────────────────────┤
+│ npm install │ Dependencies (~1150 packages)                                                           │
+├─────────────┼─────────────────────────────────────────────────────────────────────────────────────────┤
+│ npm run     │ Downloads FFmpeg to resources\ffmpeg\win32\ffmpeg.exe. Required — resources/ is         │
+│ setup       │ gitignored, and win-app fails without it                                                │
+├─────────────┼─────────────────────────────────────────────────────────────────────────────────────────┤
+│ npm run     │ Compiles renderer → dist-react\, main + preload → dist-app\                             │
+│ build       │                                                                                         │
+├─────────────┼─────────────────────────────────────────────────────────────────────────────────────────┤
+│ npm run     │ Packs the NSIS installer into release\                                                  │
+│ win-app     │                                                                                         │
+└─────────────┴─────────────────────────────────────────────────────────────────────────────────────────┘
+```
 ## Development
 
 | Command | What it does |
