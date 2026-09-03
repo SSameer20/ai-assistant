@@ -60,7 +60,18 @@ if (fs.existsSync(destination)) {
 async function download(url, outPath) {
   const curl = spawnSync(
     "curl",
-    ["-fL", "--retry", "3", "--retry-all-errors", "--connect-timeout", "30", "-o", outPath, url],
+    [
+      "-fL",
+      "--retry",
+      "3",
+      "--retry-all-errors",
+      "--connect-timeout",
+      "30",
+      "--progress-bar",
+      "-o",
+      outPath,
+      url,
+    ],
     { stdio: "inherit" },
   );
 
