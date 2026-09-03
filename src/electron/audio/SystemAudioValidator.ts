@@ -1,3 +1,6 @@
+import fs from "fs";
+import path from "path";
+import { execSync } from "child_process";
 import { SystemAudioRecorder } from "./SystemAudioRecorder.js";
 
 export interface ValidationResult {
@@ -40,13 +43,14 @@ export class SystemAudioValidator {
     // Platform-specific device validation
     if (platform === "win32") {
       try {
-        const devices = await this.recorder.listAudioDevices();
-        const outputDevices = devices.filter((device) => device.type === "render");
+        // dshow enumerates capture endpoints only, so filtering by "render" would
+        // always come up empty on Windows.
+        const outputDevices = await this.recorder.listAudioDevices();
 
         if (outputDevices.length === 0) {
           return {
             isValid: false,
-            error: "No audio output devices found. Please connect speakers or headphones.",
+            error: "No audio devices found. Please connect speakers, headphones or a microphone.",
           };
         }
 
@@ -99,8 +103,6 @@ export class SystemAudioValidator {
     // Validate output directory
     if (outputDir) {
       try {
-        const fs = require("fs");
-        const path = require("path");
 
         // Check if directory exists or can be created
         if (!fs.existsSync(outputDir)) {
@@ -198,7 +200,6 @@ export class SystemAudioValidator {
    */
   private getAvailableDiskSpace(dirPath: string): number | null {
     try {
-      const { execSync } = require("child_process");
       if (process.platform === "win32") {
         const drive = dirPath.split(":")[0] + ":";
         const output = execSync(`fsutil volume diskfree ${drive}`, {

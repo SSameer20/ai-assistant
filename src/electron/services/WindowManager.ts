@@ -12,6 +12,7 @@ export interface WindowManagerOptions {
 export class WindowManager {
   private window: BrowserWindowType | null = null;
   private options: WindowManagerOptions;
+  private reapplyContentProtection = () => this.enableContentProtection();
 
   constructor(options: WindowManagerOptions) {
     this.options = options;
@@ -38,6 +39,9 @@ export class WindowManager {
       skipTaskbar: true,
       resizable: true,
       focusable: true, // REQUIRED
+      // On Windows, skipTaskbar only removes the taskbar button (ITaskbarList::DeleteTab).
+      // "toolbar" applies WS_EX_TOOLWINDOW, which also drops the window from the Alt-Tab switcher.
+      ...(process.platform === "win32" ? { type: "toolbar" as const } : {}),
       icon:
         process.platform === "win32" || process.platform === "linux"
           ? this.options.iconPath
@@ -49,7 +53,6 @@ export class WindowManager {
         nodeIntegration: false,
       },
     });
-    this.enableContentProtection();
 
     this.setupWindow();
     return this.window;
@@ -63,7 +66,15 @@ export class WindowManager {
 
     this.window.setIgnoreMouseEvents(false);
     // Enable content protection immediately — window must never appear on screen share
-    this.window.setContentProtection(true);
+    this.enableContentProtection();
+    // Windows can drop WDA_EXCLUDEFROMCAPTURE across a re-show or a display change,
+    // and the overlay hides/shows on every toggle shortcut.
+    this.window.on("show", () => this.enableContentProtection());
+    this.window.on("restore", () => this.enableContentProtection());
+    screen.on("display-metrics-changed", this.reapplyContentProtection);
+    this.window.on("closed", () => {
+      screen.removeListener("display-metrics-changed", this.reapplyContentProtection);
+    });
     this.window.webContents.on("did-finish-load", () => {
       console.log("Main window finished loading");
     });

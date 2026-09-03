@@ -2,6 +2,7 @@ import electronMain from "electron/main";
 const { app } = electronMain;
 import path from "path";
 import fs from "fs";
+import os from "os";
 
 export class FFmpegPathResolver {
   private static instance: FFmpegPathResolver;
@@ -108,14 +109,16 @@ export class FFmpegPathResolver {
     return new Promise((resolve, reject) => {
       // Check for architecture mismatch on macOS
       if (process.platform === "darwin") {
-        const os = require("os");
+        // `require` is not available here: this module compiles to ESM.
         const arch = os.arch();
         // If we are on arm64 (Apple Silicon) but the binary is captured by setup.sh as x86_64,
         // it might fail if Rosetta is not installed or if executed in certain environments.
         console.log(`Verifying FFmpeg on macOS (${arch}) at: ${ffmpegPath}`);
       }
 
-      const ffmpeg = spawn(ffmpegPath, ["-version"], { shell: true });
+      // No shell: on Windows cmd.exe mangles paths containing spaces
+      // (e.g. C:\Program Files\...), and the argument list is fully controlled here.
+      const ffmpeg = spawn(ffmpegPath, ["-version"]);
 
       let output = "";
       let errorOutput = "";

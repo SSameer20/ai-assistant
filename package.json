@@ -12,11 +12,12 @@
   "scripts": {
     "dev": "npm run build:web-dev && npm run build:app && npm run dev:app",
     "dev:web": "vite",
-    "dev:app": "env -u ELECTRON_RUN_AS_NODE electron .",
+    "dev:app": "node scripts/dev-app.mjs",
     "build": "npm run build:web && npm run build:app",
     "build:web": "tsc -b && vite build",
     "build:web-dev": "tsc -b && vite build --mode development",
     "build:app": "tsc --project src/electron/tsconfig.json && tsc --project src/electron/tsconfig.preload.json",
+    "setup": "node scripts/setup-ffmpeg.mjs",
     "lint": "eslint .",
     "app": "npx electron-builder",
     "preview": "vite preview",

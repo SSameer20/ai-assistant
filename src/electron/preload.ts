@@ -148,9 +148,9 @@ contextBridge.exposeInMainWorld("permissions", {
     ipcRenderer.invoke("permissions:open-settings", type),
 });
 
-// System audio loopback recording (uses electron-audio-loopback)
-let loopbackRecorder: MediaRecorder | null = null;
-let loopbackChunks: Blob[] = [];
+// System audio loopback capture.
+// The stream comes from getDisplayMedia, answered by the main process:
+// electron-audio-loopback on macOS, DisplayMediaService (WASAPI loopback) on Windows.
 let loopbackStream: MediaStream | null = null;
 let recordingStartTime: number | null = null;
 let wavAudioContext: AudioContext | null = null;
@@ -222,6 +222,37 @@ function writeStr(view: DataView, offset: number, str: string) {
   }
 }
 
+function teardownSystemAudio(): void {
+  try {
+    wavProcessorNode?.disconnect();
+  } catch (error) {
+    console.warn("Failed to disconnect loopback processor node:", error);
+  }
+  try {
+    wavSourceNode?.disconnect();
+  } catch (error) {
+    console.warn("Failed to disconnect loopback source node:", error);
+  }
+  if (wavProcessorNode) wavProcessorNode.onaudioprocess = null;
+  try {
+    loopbackStream?.getTracks().forEach((track) => track.stop());
+  } catch (error) {
+    console.warn("Failed to stop loopback tracks:", error);
+  }
+  try {
+    void wavAudioContext?.close();
+  } catch (error) {
+    console.warn("Failed to close loopback AudioContext:", error);
+  }
+
+  wavProcessorNode = null;
+  wavSourceNode = null;
+  wavAudioContext = null;
+  loopbackStream = null;
+  isSystemAudioInitialized = false;
+  isSystemRecordingActive = false;
+}
+
 async function doSystemAudioInit() {
   if (isSystemAudioInitialized) return { success: true };
   try {
@@ -233,10 +264,31 @@ async function doSystemAudioInit() {
       };
     }
 
+    // video:true is required — Windows only attaches the WASAPI loopback track to a
+    // request that also asks for a display surface. The video track is dropped below.
     const stream: MediaStream = await navigator.mediaDevices.getDisplayMedia({
       video: true,
       audio: true,
     });
+
+    const audioTracks = stream.getAudioTracks();
+    if (audioTracks.length === 0) {
+      stream.getTracks().forEach((track) => track.stop());
+      return {
+        success: false,
+        error:
+          "System audio is unavailable: the capture stream returned no audio track. " +
+          "On Windows this means loopback audio was refused by the OS; check that an " +
+          "audio output device is active.",
+      };
+    }
+
+    const trackSettings = audioTracks[0].getSettings?.();
+    console.log(
+      `System audio track acquired (sampleRate=${trackSettings?.sampleRate ?? "unknown"}, ` +
+        `channels=${(trackSettings as { channelCount?: number } | undefined)?.channelCount ?? "unknown"})`,
+    );
+
     stream.getVideoTracks().forEach((track) => {
       track.stop();
       stream.removeTrack(track);
@@ -288,13 +340,14 @@ async function doSystemAudioInit() {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to init loopback recording";
     console.error("Loopback init error:", error);
+    teardownSystemAudio();
     return { success: false, error: message };
   }
 }
 
 contextBridge.exposeInMainWorld("systemAudio", {
   init: () => doSystemAudioInit(),
-  startRecording: async (options?: {
+  startRecording: async (_options?: {
     outputDir?: string;
     filename?: string;
     quality?: "standard" | "high";
@@ -304,8 +357,8 @@ contextBridge.exposeInMainWorld("systemAudio", {
         const res = await doSystemAudioInit();
         if (!res.success) return res;
       }
-      if (wavAudioContext && (wavAudioContext as any).state === "suspended") {
-        await (wavAudioContext as any).resume();
+      if (wavAudioContext && wavAudioContext.state === "suspended") {
+        await wavAudioContext.resume();
       }
       isSystemRecordingActive = true;
       recordingStartTime = Date.now();
@@ -321,9 +374,9 @@ contextBridge.exposeInMainWorld("systemAudio", {
     try {
       isSystemRecordingActive = false;
       recordingStartTime = null;
-      if (wavAudioContext && (wavAudioContext as any).state === "running") {
-        await (wavAudioContext as any).suspend();
-      }
+      // Release the capture stream outright, not just suspend it: while the stream is
+      // alive Windows keeps showing the "sharing your screen" indicator.
+      teardownSystemAudio();
       return { success: true };
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to stop recording";

@@ -1,20 +1,31 @@
 export interface WindowsAudioDevice {
   name: string;
+  /** Value to pass to FFmpeg's dshow demuxer, e.g. `audio=Microphone (Realtek)`. */
   id: string;
   type: "render" | "capture";
   isDefault: boolean;
 }
 
+/**
+ * FFmpeg command helpers for Windows.
+ *
+ * Note on demuxers: FFmpeg has no `wasapi` input demuxer — DirectShow (`dshow`) is the
+ * Windows audio input. dshow can only see *capture* endpoints, so recording the system
+ * output through FFmpeg requires a loopback device such as "Stereo Mix" or VB-Cable.
+ * Live system-audio capture no longer goes through FFmpeg at all: it uses Electron's
+ * native WASAPI loopback via getDisplayMedia (see DisplayMediaService). These commands
+ * remain for device enumeration and offline/local capture.
+ */
 export class WindowsAudioCommands {
   /**
-   * Get WASAPI loopback command for recording system audio
+   * Record from the default DirectShow audio capture device.
    */
   public static getSystemAudioCommand(outputPath: string): string[] {
     return [
       "-f",
-      "wasapi",
+      "dshow",
       "-i",
-      "default", // Default system output device
+      "audio=default",
       "-ar",
       "44100", // Sample rate: 44.1 kHz
       "-ac",
@@ -27,14 +38,14 @@ export class WindowsAudioCommands {
   }
 
   /**
-   * Get WASAPI loopback command with specific device
+   * Record from a specific DirectShow device.
    */
   public static getSystemAudioCommandWithDevice(deviceId: string, outputPath: string): string[] {
     return [
       "-f",
-      "wasapi",
+      "dshow",
       "-i",
-      `audio=${deviceId}`,
+      deviceId.startsWith("audio=") ? deviceId : `audio=${deviceId}`,
       "-ar",
       "44100",
       "-ac",
@@ -47,21 +58,22 @@ export class WindowsAudioCommands {
   }
 
   /**
-   * Get command to list available WASAPI devices
+   * List available DirectShow devices. FFmpeg writes the list to stderr and exits
+   * non-zero — that is expected.
    */
   public static getListDevicesCommand(): string[] {
-    return ["-f", "wasapi", "-list_devices", "true", "-i", "dummy"];
+    return ["-list_devices", "true", "-f", "dshow", "-i", "dummy"];
   }
 
   /**
-   * Get enhanced quality command with noise reduction
+   * Higher quality variant with light cleanup filters.
    */
   public static getHighQualitySystemAudioCommand(outputPath: string): string[] {
     return [
       "-f",
-      "wasapi",
+      "dshow",
       "-i",
-      "default",
+      "audio=default",
       "-ar",
       "48000", // Higher sample rate
       "-ac",
@@ -76,93 +88,55 @@ export class WindowsAudioCommands {
   }
 
   /**
-   * Parse FFmpeg device list output to extract Windows audio devices
+   * Parse FFmpeg's dshow device listing.
+   *
+   * Expected shape:
+   *   [dshow @ 000..] DirectShow audio devices
+   *   [dshow @ 000..]  "Microphone (Realtek(R) Audio)"
+   *   [dshow @ 000..]     Alternative name "@device_cm_{33D9A762-...}"
    */
   public static parseDeviceList(output: string): WindowsAudioDevice[] {
     const devices: WindowsAudioDevice[] = [];
     const lines = output.split("\n");
-    let currentType: "render" | "capture" | null = null;
+    let inAudioSection = false;
 
     for (const line of lines) {
-      // Detect device type sections
-      if (line.includes("DirectSound capture devices") || line.includes("wasapi capture devices")) {
-        currentType = "capture";
+      if (/DirectShow video devices/i.test(line)) {
+        inAudioSection = false;
         continue;
       }
-      if (line.includes("DirectSound output devices") || line.includes("wasapi output devices")) {
-        currentType = "render";
+      if (/DirectShow audio devices/i.test(line)) {
+        inAudioSection = true;
         continue;
       }
+      if (!inAudioSection) continue;
 
-      if (!currentType) continue;
-
-      // Parse device entries with improved regex for special characters
-      // Handle both quoted and unquoted device names
-      const deviceMatch = line.match(
-        /\[(?:wasapi|dshow) @ [^\]]+\]\s+(?:"([^"]+)"|([^\s]+[^\(]*))\s*(?:\(([^\)]+)\))?/,
-      );
-
-      if (deviceMatch) {
-        // Extract name from either quoted or unquoted match
-        const name = (deviceMatch[1] || deviceMatch[2] || "Unknown Device").trim();
-        const id = deviceMatch[3] || name; // Use description as ID if available, otherwise name
-        const isDefault = line.toLowerCase().includes("default") || line.includes("[default]");
-
-        // Skip empty or invalid device names
-        if (name && name !== "Unknown Device" && !name.startsWith("Alternative name")) {
-          devices.push({
-            name: name.replace(/[\r\n\t]/g, " ").trim(), // Clean up whitespace
-            id: id.replace(/[\r\n\t]/g, " ").trim(),
-            type: currentType,
-            isDefault,
-          });
+      // Alternative-name lines describe the device above, not a new one.
+      if (/Alternative name/i.test(line)) {
+        const alt = line.match(/"([^"]+)"/)?.[1];
+        if (alt && devices.length > 0) {
+          devices[devices.length - 1].id = alt;
         }
+        continue;
       }
+
+      const name = line.match(/^\s*\[dshow @ [^\]]+\]\s+"([^"]+)"/)?.[1];
+      if (!name) continue;
+
+      const clean = name.replace(/[\r\n\t]/g, " ").trim();
+      if (!clean) continue;
+
+      devices.push({
+        name: clean,
+        id: clean,
+        // dshow only enumerates capture endpoints.
+        type: "capture",
+        isDefault: devices.length === 0,
+      });
     }
 
-    // If no devices found, try alternative parsing methods
     if (devices.length === 0) {
-      console.warn("No devices found with primary parser, trying fallback parsing");
-      return this.fallbackDeviceParsing(output);
-    }
-
-    return devices;
-  }
-
-  /**
-   * Fallback device parsing for different FFmpeg output formats
-   */
-  private static fallbackDeviceParsing(output: string): WindowsAudioDevice[] {
-    const devices: WindowsAudioDevice[] = [];
-    const lines = output.split("\n");
-
-    for (const line of lines) {
-      // Look for any line that might contain device information
-      if (
-        line.includes("audio") &&
-        (line.includes(":") || line.includes("(") || line.includes("[")) &&
-        !line.includes("@")
-      ) {
-        // Extract device name from various formats
-        let name = "Unknown Device";
-        if (line.includes('"')) {
-          const quoted = line.match(/"([^"]+)"/)?.[1];
-          if (quoted) name = quoted;
-        } else {
-          // Try to extract meaningful text
-          const cleaned = line.replace(/^[\s\[\]\w@\s]+/, "").trim();
-          if (cleaned.length > 2) name = cleaned.split("(")[0].trim();
-        }
-
-        if (name !== "Unknown Device") {
-          devices.push({
-            name: name,
-            id: name,
-            type: "render", // Assume render device for fallback
-            isDefault: line.toLowerCase().includes("default"),
-          });
-        }
-      }
+      console.warn("No dshow audio devices parsed from FFmpeg output");
     }
 
     return devices;

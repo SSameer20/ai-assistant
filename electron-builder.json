@@ -2,7 +2,7 @@
   "appId": "com.0xlabsorg.qluely",
   "productName": "Clever AI",
   "directories": { "output": "release" },
-  "files": ["dist-app", "dist-react"],
+  "files": ["dist-app", "dist-react", "assets/**"],
   "protocols": [
     { "name": "Qluely", "schemes": ["qluely"] },
     { "name": "Qluely Dev", "schemes": ["qluely-dev"] }

@@ -32,7 +32,7 @@ if [[ "$OS" == "Darwin" ]]; then
 elif [[ "$OS" == "MINGW"* ]] || [[ "$OS" == "MSYS"* ]] || [[ "$OS" == "CYGWIN"* ]]; then
     echo "Windows detected"
 
-    TARGET_DIR="resources/win"
+    TARGET_DIR="resources/ffmpeg/win32"
     mkdir -p "$TARGET_DIR"
 
     echo "Downloading FFmpeg for Windows..."

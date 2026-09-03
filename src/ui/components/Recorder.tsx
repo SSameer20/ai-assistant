@@ -69,10 +69,8 @@ export default function Recorder({ disabled = false }: { disabled?: boolean }) {
     }
   }, [shouldStopRecording, isRecording]);
 
-  // Pre-initialize system audio on mount to save startup time
-  useEffect(() => {
-    window.systemAudio.init?.().catch(console.error);
-  }, []);
+  // Deliberately NOT pre-initialising on mount: acquiring the loopback stream raises the
+  // OS "sharing" indicator. Capture starts only when the button is clicked.
 
   const handleToggle = async () => {
     if (isLoading) return;

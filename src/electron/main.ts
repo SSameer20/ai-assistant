@@ -18,6 +18,7 @@ import { AudioRecordingService } from "./services/AudioRecordingService.js";
 import { PermissionService } from "./services/PermissionService.js";
 import { OAuthService } from "./services/OAuthService.js";
 import { ProviderSettingsService } from "./services/ProviderSettingsService.js";
+import { registerDisplayMediaHandler } from "./services/DisplayMediaService.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -95,12 +96,29 @@ function initializeAudioLoopback(): void {
 
 initializeAudioLoopback();
 
-// Register custom protocol for deep linking
-if (app.isPackaged) {
-  // Only touch LaunchServices in packaged builds. Keeping dev startup minimal
-  // avoids macOS launch-time aborts and keeps `npm run dev` focused on the UI.
-  app.setAsDefaultProtocolClient("qluely");
+// Register custom protocols for deep linking. Both schemes are declared in
+// electron-builder.json, so both need to be claimed at runtime.
+const DEEP_LINK_SCHEMES = ["qluely", "qluely-dev"];
+
+function registerProtocolClients(): void {
+  if (app.isPackaged) {
+    // Only touch LaunchServices in packaged builds. Keeping dev startup minimal
+    // avoids macOS launch-time aborts and keeps `npm run dev` focused on the UI.
+    DEEP_LINK_SCHEMES.forEach((scheme) => app.setAsDefaultProtocolClient(scheme));
+    return;
+  }
+
+  // On Windows an unpackaged app must register electron.exe plus the entry script,
+  // otherwise the OS has nothing to launch for the scheme.
+  if (process.platform === "win32" && process.argv.length >= 2) {
+    const entry = path.resolve(process.argv[1]);
+    DEEP_LINK_SCHEMES.forEach((scheme) =>
+      app.setAsDefaultProtocolClient(scheme, process.execPath, [entry]),
+    );
+  }
 }
+
+registerProtocolClients();
 
 // Export WindowManager getter for IPC handlers
 export function getWindowManager(): WindowManager {
@@ -184,16 +202,25 @@ function initializeWindowManager(): void {
     path.join(__dirname, "../../dist-react/index.html"),
   ];
 
+  // __dirname is dist-app/electron, so assets/ lives two levels up in dev and inside
+  // the asar root once packaged.
+  const iconCandidates = [
+    path.join(app.getAppPath(), "assets", "logo.png"),
+    path.join(__dirname, "../../assets/logo.png"),
+    path.join(process.resourcesPath ?? "", "assets", "logo.png"),
+  ];
+
   const preloadPath =
     preloadCandidates.find((candidate) => fs.existsSync(candidate)) ?? preloadCandidates[0];
   const htmlPath =
     htmlCandidates.find((candidate) => fs.existsSync(candidate)) ?? htmlCandidates[0];
+  const iconPath = iconCandidates.find((candidate) => fs.existsSync(candidate));
 
-  windowManager = new WindowManager({
-    preloadPath,
-    htmlPath,
-    iconPath: path.join(__dirname, "../assets/logo.png"),
-  });
+  if (!iconPath) {
+    console.warn("App icon not found; falling back to the Electron default", iconCandidates);
+  }
+
+  windowManager = new WindowManager({ preloadPath, htmlPath, iconPath });
 }
 // Initialize WebSocketManager
 function initializeWebSocketManager(): void {
@@ -358,6 +385,8 @@ app.whenReady().then(async () => {
     // Initialize services early to prevent race conditions with activate event or shortcuts
     initializeStore();
     initializeWindowManager();
+    // Must run before the first getDisplayMedia() call from the preload script.
+    registerDisplayMediaHandler();
     initializeProviderSettingsService();
     initializeAutoUpdaterService();
     initializeAICommunicationService();

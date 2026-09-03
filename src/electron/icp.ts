@@ -137,12 +137,23 @@ ipcMain.on("ai:start", async (event, input: QluelyInput) => {
   }
 });
 
+// Only warn the renderer once per provider, otherwise every 1.2s audio chunk would
+// spam the UI with the same message.
+let sttUnsupportedNotifiedFor: string | null = null;
+
 async function transcribeAudioChunk(chunk: Buffer): Promise<void> {
   try {
     const providerSettings = getProviderSettingsService();
     const settings = providerSettings?.getSettings();
     if (!settings) {
       console.warn("Skipping audio transcription because no provider settings are saved");
+      if (sttUnsupportedNotifiedFor !== "none") {
+        sttUnsupportedNotifiedFor = "none";
+        mainWindow?.webContents.send(
+          "ai:error",
+          "No API key configured. Open Settings to add your provider API key before recording.",
+        );
+      }
       return;
     }
 
@@ -150,8 +161,18 @@ async function transcribeAudioChunk(chunk: Buffer): Promise<void> {
       console.warn(
         `Audio transcription is currently wired for OpenAI only, not ${settings.provider}`,
       );
+      if (sttUnsupportedNotifiedFor !== settings.provider) {
+        sttUnsupportedNotifiedFor = settings.provider;
+        mainWindow?.webContents.send(
+          "ai:error",
+          `Speech-to-text is only wired for OpenAI, but the configured provider is ${settings.provider}. ` +
+            "Audio is being captured but not transcribed.",
+        );
+      }
       return;
     }
+
+    sttUnsupportedNotifiedFor = null;
 
     const formData = new FormData();
     formData.append("model", settings.sttModel || providerSettings.getDefaultSttModel("openai"));
@@ -538,9 +559,18 @@ ipcMain.handle("app:quit", () => {
  */
 ipcMain.handle("permissions:get-status", (_, type: "microphone" | "camera" | "screen") => {
   try {
-    if (process.platform !== "darwin") return "granted";
-    // @ts-ignore
-    return systemPreferences.getMediaAccessStatus(type as any);
+    if (process.platform === "darwin") {
+      // @ts-ignore - "screen" is valid on newer Electron versions
+      return systemPreferences.getMediaAccessStatus(type as any);
+    }
+
+    // Windows exposes privacy-setting state for microphone and camera only; screen
+    // capture has no OS-level gate there.
+    if (process.platform === "win32" && (type === "microphone" || type === "camera")) {
+      return systemPreferences.getMediaAccessStatus(type);
+    }
+
+    return "granted";
   } catch (error) {
     console.error("Get permissions status error:", error);
     return "denied";
