@@ -8,10 +8,9 @@
     { "name": "Qluely Dev", "schemes": ["qluely-dev"] }
   ],
   "publish": {
-    "provider": "s3",
-    "bucket": "qluely-desktop-bin",
-    "region": "ap-south-1",
-    "path": "win"
+    "provider": "github",
+    "owner": "SSameer20",
+    "repo": "ai-assistant"
   },
   "win": {
     "icon": "assets/logo.ico",
